@@ -316,6 +316,16 @@ def get_logs(tail):
     )
 
 
+def format_command_error(result, fallback):
+    message = result["stderr"] or result["stdout"] or fallback
+    return {
+        "error": message,
+        "returncode": result["returncode"],
+        "stdout": result["stdout"],
+        "stderr": result["stderr"],
+    }
+
+
 class UniLidarHandler(BaseHTTPRequestHandler):
     server_version = "UniLidarRemote/1.0"
 
@@ -355,12 +365,26 @@ class UniLidarHandler(BaseHTTPRequestHandler):
                 tail = 300
             result = get_logs(tail)
             status = get_status()
+            if result["returncode"] != 0:
+                missing_container = "No such container" in result["stderr"]
+                message = (
+                    f"{DEFAULT_CONTAINER_NAME} is not running yet."
+                    if missing_container
+                    else result["stderr"] or result["stdout"] or "Unable to read docker logs."
+                )
+                payload = {
+                    "logs": message,
+                    "running": status["running"],
+                    "container_name": DEFAULT_CONTAINER_NAME,
+                }
+                self._write_json(payload)
+                return
             payload = {
                 "logs": result["stdout"] or result["stderr"],
                 "running": status["running"],
                 "container_name": DEFAULT_CONTAINER_NAME,
             }
-            self._write_json(payload, HTTPStatus.OK if result["returncode"] == 0 else HTTPStatus.BAD_GATEWAY)
+            self._write_json(payload)
             return
         self._write_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
@@ -368,13 +392,23 @@ class UniLidarHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/start":
             result = run_command([str(START_SCRIPT), DEFAULT_COMPOSE_NAME])
-            status = HTTPStatus.OK if result["returncode"] == 0 else HTTPStatus.BAD_GATEWAY
-            self._write_json(result, status)
+            if result["returncode"] == 0:
+                self._write_json(result)
+            else:
+                self._write_json(
+                    format_command_error(result, "Failed to start UniLidar."),
+                    HTTPStatus.BAD_GATEWAY,
+                )
             return
         if parsed.path == "/api/stop":
             result = run_command([str(STOP_SCRIPT), DEFAULT_COMPOSE_NAME])
-            status = HTTPStatus.OK if result["returncode"] == 0 else HTTPStatus.BAD_GATEWAY
-            self._write_json(result, status)
+            if result["returncode"] == 0:
+                self._write_json(result)
+            else:
+                self._write_json(
+                    format_command_error(result, "Failed to stop UniLidar."),
+                    HTTPStatus.BAD_GATEWAY,
+                )
             return
         self._write_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
