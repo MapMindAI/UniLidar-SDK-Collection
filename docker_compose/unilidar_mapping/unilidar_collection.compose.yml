@@ -1,7 +1,7 @@
 services:
   unilidar_sdk:
     image: yeliudm/arm64-ros2humble-opencv4.8.1:latest
-    platform: linux/amd64
+    platform: linux/arm64
     container_name: UniLidarSdk
     privileged: true
     volumes:
@@ -25,7 +25,7 @@ services:
 
   recorder:
     image: yeliudm/arm64-ros2humble-opencv4.8.1:latest
-    platform: linux/amd64
+    platform: linux/arm64
     container_name: Recorder
     privileged: true
     volumes:
