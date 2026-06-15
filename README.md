@@ -1,3 +1,18 @@
+# Unitree Lidar Collector
+
+## How to use
+
+1. prepare the environment
+```
+mkdir -p ~/work
+cd ~/work
+git clone https://github.com/MapMindAI/unilidar_sdk2_bazel.git
+bash unilidar_sdk2_bazel/docker_compose/boot_app/enable_unilidar_web_boot.sh
+```
+
+2. then got to web `http://<device-ip>:8080/`
+
+
 # Unitree Lidar SDK
 
 This directory contains:
