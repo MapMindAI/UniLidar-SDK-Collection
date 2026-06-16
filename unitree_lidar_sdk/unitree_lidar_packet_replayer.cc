@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,6 +28,49 @@ DEFINE_double(play_hz, 5.0, "Autoplay rate in clouds per second.");
 DEFINE_double(point_size, 2.0, "Point size in the viewer.");
 DEFINE_double(min_range_m, 0.0, "Additional minimum range filter in meters.");
 DEFINE_double(max_range_m, 100.0, "Additional maximum range filter in meters.");
+DEFINE_bool(orthographic_camera, true, "Use an orthographic camera in the Pangolin viewer.");
+DEFINE_double(orthographic_extent, 50.0,
+              "Half extent of the orthographic camera frustum in viewer units.");
+
+namespace pangolin {
+
+struct OrthographicHandler3D : Handler3D {
+  OrthographicHandler3D(OpenGlRenderState* cam_state, AxisDirection enforce_up = AxisNone,
+                        float trans_scale = 0.01f,
+                        float zoom_fraction = PANGO_DFLT_HANDLER3D_ZF,
+                        GLprecision initial_extent = 50)
+      : Handler3D((*cam_state), enforce_up, trans_scale, zoom_fraction),
+        current(initial_extent) {}
+
+  GLprecision current = 50;
+
+  void Mouse(View& display, MouseButton button, int x, int y, bool pressed,  // NOLINT
+             int button_state) override {                                     // NOLINT
+    last_pos[0] = static_cast<float>(x);
+    last_pos[1] = static_cast<float>(y);
+    funcKeyState = 0;
+    if (pressed) {
+      GetPosNormal(display, x, y, p, Pw, Pc, n, last_z);
+      if (ValidWinDepth(p[2])) {
+        last_z = p[2];
+        std::copy(Pc, Pc + 3, rot_center);
+      }
+      if (button == MouseWheelUp || button == MouseWheelDown) {
+        const GLprecision change = (button == MouseWheelUp ? 1 : -1) * 50 * tf;
+        current -= change * std::pow(std::log(std::abs(current) + 1), 2);
+        current = std::max<GLprecision>(1e-3, current);
+        cam_state->SetProjectionMatrix(pangolin::ProjectionMatrixOrthographic(
+            -current, current, -current, current, -5000, 5000));
+        return;
+      }
+      funcKeyState = button_state;
+    }
+
+    Handler3D::Mouse(display, button, x, y, pressed, button_state);
+  }
+};
+
+}  // namespace pangolin
 
 namespace dm::third_party {
 namespace {
@@ -210,13 +254,28 @@ void RunViewer(const std::vector<ReplayFrame>& frames) {
   pangolin::Var<int> ui_seq_first("menu.Seq First", 0, 0, 0, false);
   pangolin::Var<int> ui_seq_last("menu.Seq Last", 0, 0, 0, false);
 
-  pangolin::OpenGlRenderState render_state(
-      pangolin::ProjectionMatrix(1280, 720, 700, 700, 640, 360, 0.1, 5000),
-      pangolin::ModelViewLookAt(0, -6, -2, 0, 0, 0, pangolin::AxisY));
-  pangolin::View& view_3d =
-      pangolin::CreateDisplay()
-          .SetBounds(0.0, 1.0, pangolin::Attach::Pix(kMenuWidth), 1.0, -1280.0f / 720.0f)
-          .SetHandler(new pangolin::Handler3D(render_state));
+  std::shared_ptr<pangolin::OpenGlRenderState> render_state;
+  pangolin::View* view_3d = nullptr;
+  if (FLAGS_orthographic_camera) {
+    const double extent = std::max(1e-3, FLAGS_orthographic_extent);
+    render_state = std::make_shared<pangolin::OpenGlRenderState>(
+        pangolin::ProjectionMatrixOrthographic(-extent, extent, -extent, extent, -5000, 5000),
+        pangolin::ModelViewLookAt(0, 0, 20, 0, 0, 0, pangolin::AxisY));
+    view_3d =
+        &(pangolin::CreateDisplay()
+              .SetBounds(0.0, 1.0, pangolin::Attach::Pix(kMenuWidth), 1.0, -1.0f)
+              .SetHandler(new pangolin::OrthographicHandler3D(
+                  render_state.get(), pangolin::AxisNone, 0.01f,
+                  PANGO_DFLT_HANDLER3D_ZF, extent)));
+  } else {
+    render_state = std::make_shared<pangolin::OpenGlRenderState>(
+        pangolin::ProjectionMatrix(1280, 720, 700, 700, 640, 360, 0.1, 5000),
+        pangolin::ModelViewLookAt(0, -6, -2, 0, 0, 0, pangolin::AxisY));
+    view_3d =
+        &(pangolin::CreateDisplay()
+              .SetBounds(0.0, 1.0, pangolin::Attach::Pix(kMenuWidth), 1.0, -1280.0f / 720.0f)
+              .SetHandler(new pangolin::Handler3D(*render_state)));
+  }
 
   size_t frame_index = 0;
   auto last_advance_time = Clock::now();
@@ -254,7 +313,7 @@ void RunViewer(const std::vector<ReplayFrame>& frames) {
     ui_seq_last = static_cast<int>(frame.last_sequence);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    view_3d.Activate(render_state);
+    view_3d->Activate(*render_state);
     if (ui_show_axis) {
       pangolin::glDrawAxis(1.0);
     }
