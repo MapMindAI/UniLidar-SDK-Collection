@@ -1,5 +1,3 @@
-// Copyright 2026 MapMind Inc. All rights reserved.
-
 #include <unistd.h>
 #include <algorithm>
 #include <atomic>
