@@ -77,15 +77,18 @@ Example:
 ```bash
 bazel-bin/unitree_lidar_sdk/unitree_lidar_packet_replayer \
   --input_path=data/unitree_lidar_packets.bin \
-  --accumulate_rings=50
+  --accumulate_rings=50 \
+  --merge_beginning_frames=10
 ```
 
 Useful flags:
 
 - `--input_path=<file>`
 - `--accumulate_rings=<N>`
+- `--merge_beginning_frames=<N>`
 - `--play_hz=<rate>`
 - `--point_size=<size>`
+- `--merged_point_size=<size>`
 - `--min_range_m=<min>`
 - `--max_range_m=<max>`
 
@@ -95,7 +98,9 @@ Viewer controls:
 - `Prev` / `Next`: step one frame
 - `Reset`: go back to frame 0
 - `Loop`: restart when reaching the end
+- `Show Merged`: overlay the merged first `N` frames as a static background cloud
 - `Point Size`: point size in Pangolin
+- `Merged Pt Size`: point size for the merged background cloud
 
 Each replay frame stores:
 

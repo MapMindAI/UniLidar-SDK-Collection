@@ -21,13 +21,16 @@
 #include "unitree_lidar_sdk/raw_packet_file.h"
 
 DEFINE_string(input_path, "/tmp/unitree_lidar_packets.bin", "Input raw packet recording file.");
-DEFINE_int32(accumulate_rings, 18, "Number of packets to accumulate into one displayed cloud.");
+DEFINE_int32(accumulate_rings, 50, "Number of packets to accumulate into one displayed cloud.");
 DEFINE_int32(window_width, 1600, "Viewer width.");
 DEFINE_int32(window_height, 900, "Viewer height.");
 DEFINE_double(play_hz, 5.0, "Autoplay rate in clouds per second.");
 DEFINE_double(point_size, 2.0, "Point size in the viewer.");
+DEFINE_double(merged_point_size, 1.0, "Point size for the merged initial-frame cloud.");
 DEFINE_double(min_range_m, 0.0, "Additional minimum range filter in meters.");
 DEFINE_double(max_range_m, 100.0, "Additional maximum range filter in meters.");
+DEFINE_int32(merge_beginning_frames, 10,
+             "Merge the first N replay frames into one static point cloud and overlay it.");
 DEFINE_bool(orthographic_camera, true, "Use an orthographic camera in the Pangolin viewer.");
 DEFINE_double(orthographic_extent, 50.0,
               "Half extent of the orthographic camera frustum in viewer units.");
@@ -227,7 +230,38 @@ std::vector<ReplayFrame> BuildReplayFrames(const std::vector<RecordedPacket>& pa
   return frames;
 }
 
-void RunViewer(const std::vector<ReplayFrame>& frames) {
+ReplayFrame BuildMergedBeginningFrame(const std::vector<ReplayFrame>& frames, int merge_count) {
+  ReplayFrame merged;
+  if (frames.empty() || merge_count <= 0) {
+    return merged;
+  }
+
+  const size_t clamped_count =
+      std::min(frames.size(), static_cast<size_t>(std::max(0, merge_count)));
+  size_t total_points = 0;
+  for (size_t i = 0; i < clamped_count; ++i) {
+    total_points += frames[i].points.size();
+  }
+  merged.points.reserve(total_points);
+
+  merged.first_sequence = frames.front().first_sequence;
+  merged.first_host_timestamp_ns = frames.front().first_host_timestamp_ns;
+  merged.last_sequence = frames[clamped_count - 1].last_sequence;
+  merged.last_host_timestamp_ns = frames[clamped_count - 1].last_host_timestamp_ns;
+
+  for (size_t i = 0; i < clamped_count; ++i) {
+    merged.packet_count += frames[i].packet_count;
+    for (const auto& point : frames[i].points) {
+      CloudPoint merged_point = point;
+      merged_point.color = 0.35f * point.color + 0.65f * Eigen::Vector3f::Ones();
+      merged.points.push_back(std::move(merged_point));
+    }
+  }
+  return merged;
+}
+
+void RunViewer(const std::vector<ReplayFrame>& frames, const ReplayFrame* merged_beginning_frame,
+               int merged_frame_count) {
   CHECK(!frames.empty()) << "No replay frames loaded.";
   using Clock = std::chrono::steady_clock;
 
@@ -243,14 +277,24 @@ void RunViewer(const std::vector<ReplayFrame>& frames) {
   pangolin::Var<bool> ui_next("menu.Next", false, false);
   pangolin::Var<bool> ui_reset("menu.Reset", false, false);
   pangolin::Var<bool> ui_show_axis("menu.Show Axis", true, true);
+  pangolin::Var<bool> ui_show_merged("menu.Show Merged", merged_beginning_frame != nullptr, true);
   pangolin::Var<bool> ui_show_points("menu.Show Points", true, true);
   pangolin::Var<double> ui_point_size("menu.Point Size", FLAGS_point_size, 1.0, 8.0, true);
+  pangolin::Var<double> ui_merged_point_size("menu.Merged Pt Size", FLAGS_merged_point_size, 1.0,
+                                             8.0, true);
   pangolin::Var<double> ui_play_hz("menu.Play Hz", FLAGS_play_hz, 0.5, 30.0, true);
   pangolin::Var<int> ui_frame_idx("menu.Frame", 0, 0,
                                   std::max(0, static_cast<int>(frames.size()) - 1), false);
   pangolin::Var<int> ui_packet_count("menu.Packets/Frame", std::max(1, FLAGS_accumulate_rings), 0,
                                      0, false);
   pangolin::Var<int> ui_points("menu.Points", 0, 0, 0, false);
+  pangolin::Var<int> ui_merged_frames("menu.Merged Frames", merged_frame_count, 0, 0, false);
+  pangolin::Var<int> ui_merged_points("menu.Merged Points", merged_beginning_frame == nullptr
+                                                                ? 0
+                                                                : static_cast<int>(
+                                                                      merged_beginning_frame->points
+                                                                          .size()),
+                                      0, 0, false);
   pangolin::Var<int> ui_seq_first("menu.Seq First", 0, 0, 0, false);
   pangolin::Var<int> ui_seq_last("menu.Seq Last", 0, 0, 0, false);
 
@@ -318,6 +362,16 @@ void RunViewer(const std::vector<ReplayFrame>& frames) {
       pangolin::glDrawAxis(1.0);
     }
 
+    if (ui_show_merged && merged_beginning_frame != nullptr) {
+      glPointSize(static_cast<float>(ui_merged_point_size));
+      glBegin(GL_POINTS);
+      for (const auto& point : merged_beginning_frame->points) {
+        glColor3f(point.color.x(), point.color.y(), point.color.z());
+        glVertex3f(point.xyz.x(), point.xyz.y(), point.xyz.z());
+      }
+      glEnd();
+    }
+
     if (ui_show_points) {
       glPointSize(static_cast<float>(ui_point_size));
       glBegin(GL_POINTS);
@@ -346,7 +400,19 @@ int Run(int argc, char** argv) {
   const std::vector<ReplayFrame> frames = BuildReplayFrames(packets, FLAGS_accumulate_rings);
   LOG(INFO) << "Prepared " << frames.size() << " replay frames using accumulate_rings="
             << std::max(1, FLAGS_accumulate_rings);
-  RunViewer(frames);
+  std::unique_ptr<ReplayFrame> merged_beginning_frame;
+  if (FLAGS_merge_beginning_frames > 0) {
+    merged_beginning_frame =
+        std::make_unique<ReplayFrame>(BuildMergedBeginningFrame(frames, FLAGS_merge_beginning_frames));
+    LOG(INFO) << "Merged first "
+              << std::min(static_cast<int>(frames.size()), std::max(0, FLAGS_merge_beginning_frames))
+              << " frames into " << merged_beginning_frame->points.size() << " background points.";
+  }
+  RunViewer(frames, merged_beginning_frame.get(),
+            merged_beginning_frame == nullptr
+                ? 0
+                : std::min(static_cast<int>(frames.size()),
+                           std::max(0, FLAGS_merge_beginning_frames)));
   return 0;
 }
 
