@@ -11,7 +11,7 @@
 
 #include <glog/logging.h>
 
-namespace dm::third_party {
+namespace calibration {
 
 Eigen::Vector3f ColorForRing(int ring, int max_rings) {
   static const std::array<Eigen::Vector3f, 8> kPalette = {
@@ -129,11 +129,12 @@ std::vector<RecordedPacket> LoadPackets(const std::string& path) {
   std::ifstream input(path, std::ios::binary);
   CHECK(input.is_open()) << "Failed to open input file: " << path;
 
-  RawPacketFileHeader file_header{};
+  third_party::RawPacketFileHeader file_header{};
   CHECK(ReadStruct(&input, &file_header)) << "Failed to read file header.";
-  CHECK(std::memcmp(file_header.magic, kRawPacketFileMagic, sizeof(file_header.magic)) == 0)
+  CHECK(std::memcmp(file_header.magic, third_party::kRawPacketFileMagic,
+                    sizeof(file_header.magic)) == 0)
       << "Unexpected file magic in " << path;
-  CHECK_EQ(file_header.version, kRawPacketFileVersion)
+  CHECK_EQ(file_header.version, third_party::kRawPacketFileVersion)
       << "Unsupported raw packet file version.";
   CHECK_EQ(file_header.packet_size_bytes, sizeof(unilidar_sdk2::LidarPointDataPacket))
       << "Recorded packet size does not match current SDK packet struct.";
@@ -210,4 +211,4 @@ ReplayFrame BuildMergedBeginningFrame(const std::vector<ReplayFrame>& frames, in
   return merged;
 }
 
-}  // namespace dm::third_party
+}  // namespace calibration

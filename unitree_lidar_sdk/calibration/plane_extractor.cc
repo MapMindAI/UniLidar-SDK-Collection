@@ -12,7 +12,7 @@
 #include <Eigen/Eigenvalues>
 #include <glog/logging.h>
 
-namespace dm::third_party {
+namespace calibration {
 namespace {
 
 std::vector<Eigen::Vector3f> ExtractPositions(const std::vector<CloudPoint>& points) {
@@ -205,4 +205,4 @@ void LogPlaneSummary(const std::vector<PlaneModel>& planes) {
   }
 }
 
-}  // namespace dm::third_party
+}  // namespace calibration

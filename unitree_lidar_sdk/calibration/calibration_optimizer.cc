@@ -11,7 +11,7 @@
 
 #include <glog/logging.h>
 
-namespace dm::third_party {
+namespace calibration {
 namespace {
 
 struct RangeModelCandidate {
@@ -244,4 +244,4 @@ std::string VectorSummary(const std::vector<float>& values, int max_items) {
   return stream.str();
 }
 
-}  // namespace dm::third_party
+}  // namespace calibration

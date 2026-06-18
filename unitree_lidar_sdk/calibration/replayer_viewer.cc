@@ -49,7 +49,7 @@ struct OrthographicHandler3D : Handler3D {
 
 }  // namespace pangolin
 
-namespace dm::third_party {
+namespace calibration {
 namespace {
 
 void DrawPlaneRectangle(const PlaneModel& plane) {
@@ -233,4 +233,4 @@ void RunViewer(const std::vector<ReplayFrame>& frames, const ReplayFrame* merged
   }
 }
 
-}  // namespace dm::third_party
+}  // namespace calibration

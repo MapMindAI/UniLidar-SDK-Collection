@@ -10,7 +10,7 @@
 #include "unitree_lidar_sdk/calibration/plane_extractor.h"
 #include "unitree_lidar_sdk/calibration/replayer_common.h"
 
-namespace dm::third_party {
+namespace calibration {
 
 struct ResidualSummary {
   int total_points = 0;
@@ -49,6 +49,6 @@ CalibrationSolution OptimizeCalibration(const ReplayFrame& merged_frame,
                                         const CalibrationOptimizationConfig& config);
 std::string VectorSummary(const std::vector<float>& values, int max_items = 8);
 
-}  // namespace dm::third_party
+}  // namespace calibration
 
 #endif  // UNITREE_LIDAR_SDK_CALIBRATION_OPTIMIZER_H_

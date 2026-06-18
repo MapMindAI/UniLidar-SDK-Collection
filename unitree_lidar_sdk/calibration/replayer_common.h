@@ -14,10 +14,10 @@
 #include "unitree_lidar_sdk/include/unitree_lidar_protocol.h"
 #include "unitree_lidar_sdk/raw_packet_file.h"
 
-namespace dm::third_party {
+namespace calibration {
 
 struct RecordedPacket {
-  RawPacketRecordHeader record_header{};
+  third_party::RawPacketRecordHeader record_header{};
   unilidar_sdk2::LidarPointDataPacket packet{};
 };
 
@@ -85,6 +85,6 @@ std::vector<ReplayFrame> BuildReplayFrames(const std::vector<RecordedPacket>& pa
                                            float max_range_m);
 ReplayFrame BuildMergedBeginningFrame(const std::vector<ReplayFrame>& frames, int merge_count);
 
-}  // namespace dm::third_party
+}  // namespace calibration
 
 #endif  // UNITREE_LIDAR_SDK_REPLAYER_COMMON_H_

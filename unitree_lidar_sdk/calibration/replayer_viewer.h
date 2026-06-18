@@ -8,7 +8,7 @@
 #include "unitree_lidar_sdk/calibration/plane_extractor.h"
 #include "unitree_lidar_sdk/calibration/replayer_common.h"
 
-namespace dm::third_party {
+namespace calibration {
 
 struct ViewerConfig {
   int window_width = 1600;
@@ -26,6 +26,6 @@ void RunViewer(const std::vector<ReplayFrame>& frames, const ReplayFrame* merged
                int merged_frame_count, const std::vector<PlaneModel>& planes,
                const ViewerConfig& config);
 
-}  // namespace dm::third_party
+}  // namespace calibration
 
 #endif  // UNITREE_LIDAR_SDK_REPLAYER_VIEWER_H_

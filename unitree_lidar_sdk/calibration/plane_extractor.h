@@ -9,7 +9,7 @@
 
 #include "unitree_lidar_sdk/calibration/replayer_common.h"
 
-namespace dm::third_party {
+namespace calibration {
 
 struct PlaneExtractionConfig {
   bool enabled = true;
@@ -40,6 +40,6 @@ std::vector<PlaneModel> DetectPlanes(const ReplayFrame& merged_frame,
                                      const PlaneExtractionConfig& config);
 void LogPlaneSummary(const std::vector<PlaneModel>& planes);
 
-}  // namespace dm::third_party
+}  // namespace calibration
 
 #endif  // UNITREE_LIDAR_SDK_PLANE_EXTRACTOR_H_

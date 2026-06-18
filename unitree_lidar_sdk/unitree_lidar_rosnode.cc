@@ -45,7 +45,7 @@ DEFINE_bool(reset_lidar_mode, false, "Reset Lidar mode to serial");
 DEFINE_bool(stop_rotate_after_quit, false, "stop rotate after quit");
 DEFINE_double(lidar_alpha_bias_offset, 0.00, "lidar alpha bias offset");
 
-namespace dm::third_party {
+namespace third_party {
 namespace {
 
 constexpr size_t kPointStep = 32;
@@ -483,13 +483,13 @@ class UnitreeLidarRosNode final : public rclcpp::Node {
 };
 
 }  // namespace
-}  // namespace dm::third_party
+}  // namespace third_party
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<dm::third_party::UnitreeLidarRosNode>();
+  auto node = std::make_shared<third_party::UnitreeLidarRosNode>();
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;

@@ -26,7 +26,7 @@ DEFINE_bool(reset_lidar_mode, false, "Reset lidar mode after startup.");
 DEFINE_string(output_path, "/tmp/unitree_lidar_packets.bin", "Output binary file path.");
 DEFINE_int32(max_packets, -1, "Maximum number of point packets to record. Negative means no limit.");
 
-namespace dm::third_party {
+namespace third_party {
 namespace {
 
 std::atomic<bool> g_stop_requested{false};
@@ -121,6 +121,6 @@ int Run(int argc, char** argv) {
   return 0;
 }
 
-}  // namespace dm::third_party
+}  // namespace third_party
 
-int main(int argc, char** argv) { return dm::third_party::Run(argc, argv); }
+int main(int argc, char** argv) { return third_party::Run(argc, argv); }
