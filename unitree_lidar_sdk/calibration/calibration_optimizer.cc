@@ -62,8 +62,8 @@ float EvaluateRangeModel(const std::vector<float>& coefficients, float alpha) {
 }
 
 UniLidarCalibration MakeCalibrationFromRawParameters(
-    const std::vector<float> &range_coefficients,
-    const std::vector<float> &alpha_theta_coefficients) {
+    const std::vector<float>& range_coefficients,
+    const std::vector<float>& alpha_theta_coefficients) {
   UniLidarCalibration calibration;
   calibration.enabled = true;
   calibration.delta_range_alpha_fcn =
@@ -74,8 +74,8 @@ UniLidarCalibration MakeCalibrationFromRawParameters(
   return calibration;
 }
 
-double RegularizationPenalty(const std::vector<float> &range_coefficients,
-                             const std::vector<float> &alpha_theta_coefficients,
+double RegularizationPenalty(const std::vector<float>& range_coefficients,
+                             const std::vector<float>& alpha_theta_coefficients,
                              double regularization) {
   double penalty = 0.0;
   for (float coefficient : range_coefficients) {
@@ -89,10 +89,9 @@ double RegularizationPenalty(const std::vector<float> &range_coefficients,
 
 }  // namespace
 
-UniLidarCalibration
-BuildCalibrationFromParameters(const CalibrationParameters &parameters) {
-  return MakeCalibrationFromRawParameters(
-      parameters.range_coefficients_m, parameters.alpha_theta_coefficients_rad);
+UniLidarCalibration BuildCalibrationFromParameters(const CalibrationParameters& parameters) {
+  return MakeCalibrationFromRawParameters(parameters.range_coefficients_m,
+                                          parameters.alpha_theta_coefficients_rad);
 }
 
 ResidualSummary EvaluateResiduals(const ReplayFrame& frame, const std::vector<PlaneModel>& planes,
@@ -134,10 +133,9 @@ ResidualSummary EvaluateResiduals(const ReplayFrame& frame, const std::vector<Pl
   return summary;
 }
 
-CalibrationSolution
-OptimizeCalibration(const ReplayFrame &merged_frame,
-                    const std::vector<PlaneModel> &planes,
-                    const CalibrationOptimizationConfig &config) {
+CalibrationSolution OptimizeCalibration(const ReplayFrame& merged_frame,
+                                        const std::vector<PlaneModel>& planes,
+                                        const CalibrationOptimizationConfig& config) {
   CalibrationSolution best_solution;
   ReplayFrame candidate_frame = merged_frame;
   const std::vector<RangeModelCandidate> models =
@@ -149,7 +147,7 @@ OptimizeCalibration(const ReplayFrame &merged_frame,
     double range_step = config.range_step_m;
     double alpha_step = config.alpha_step_rad;
 
-    auto evaluate_current = [&](ResidualSummary *residuals_out) {
+    auto evaluate_current = [&](ResidualSummary* residuals_out) {
       const UniLidarCalibration calibration = MakeCalibrationFromRawParameters(
           range_coefficients, alpha_theta_coefficients);
       RebuildFramePoints(calibration, &candidate_frame);
@@ -161,9 +159,9 @@ OptimizeCalibration(const ReplayFrame &merged_frame,
       if (residuals.assigned_points < config.min_required_assigned_points) {
         return std::numeric_limits<double>::infinity();
       }
-      return residuals.rms_error_m +
-             RegularizationPenalty(range_coefficients, alpha_theta_coefficients,
-                                   config.regularization);
+      return residuals.rms_error_m + RegularizationPenalty(range_coefficients,
+                                                           alpha_theta_coefficients,
+                                                           config.regularization);
     };
 
     ResidualSummary current_residuals;
@@ -196,8 +194,7 @@ OptimizeCalibration(const ReplayFrame &merged_frame,
       }
 
       if (config.optimize_alpha_theta_coefficients) {
-        for (size_t coefficient_index = 0;
-             coefficient_index < alpha_theta_coefficients.size();
+        for (size_t coefficient_index = 0; coefficient_index < alpha_theta_coefficients.size();
              ++coefficient_index) {
           const float original = alpha_theta_coefficients[coefficient_index];
           for (const float delta :
@@ -229,12 +226,10 @@ OptimizeCalibration(const ReplayFrame &merged_frame,
     CalibrationSolution candidate_solution;
     candidate_solution.model_name = model.name;
     candidate_solution.parameters.range_coefficients_m = range_coefficients;
-    candidate_solution.parameters.alpha_theta_coefficients_rad =
-        alpha_theta_coefficients;
+    candidate_solution.parameters.alpha_theta_coefficients_rad = alpha_theta_coefficients;
     candidate_solution.objective = current_objective;
     candidate_solution.residuals = current_residuals;
-    candidate_solution.calibration =
-        BuildCalibrationFromParameters(candidate_solution.parameters);
+    candidate_solution.calibration = BuildCalibrationFromParameters(candidate_solution.parameters);
 
     if (candidate_solution.objective < best_solution.objective) {
       best_solution = std::move(candidate_solution);

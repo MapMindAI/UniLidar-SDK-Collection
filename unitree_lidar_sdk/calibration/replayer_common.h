@@ -63,9 +63,7 @@ struct ReplayFrame {
 struct UniLidarCalibration {
   bool enabled = false;
   std::function<float(float /*alpha*/)> delta_range_alpha_fcn = [](float) { return 0.0f; };
-  std::function<float(float /*theta*/)> delta_alpha_theta_fcn = [](float) {
-    return 0.0f;
-  };
+  std::function<float(float /*theta*/)> delta_alpha_theta_fcn = [](float) { return 0.0f; };
 };
 
 template <typename T>
