@@ -43,7 +43,6 @@ DEFINE_bool(threading, true, "Process point cloud publishing on a separate threa
 
 DEFINE_bool(reset_lidar_mode, false, "Reset Lidar mode to serial");
 DEFINE_bool(stop_rotate_after_quit, false, "stop rotate after quit");
-DEFINE_double(lidar_alpha_bias_offset, 0.00, "lidar alpha bias offset");
 
 namespace third_party {
 namespace {
@@ -224,7 +223,7 @@ bool BuildCloudMessage(const unilidar_sdk2::LidarPointDataPacket& packet, bool u
     time_relative += delta;
   }
 
-  float alpha_cur = packet.data.angle_min + angle_bias - FLAGS_lidar_alpha_bias_offset * accumulated_rings;
+  float alpha_cur = packet.data.angle_min + angle_bias;
   float theta_cur = packet.data.com_horizontal_angle_start + theta_bias;
 
   // static float last_com_horizontal_angle_end = 0.0;
