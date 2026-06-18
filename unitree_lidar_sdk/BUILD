@@ -26,7 +26,6 @@ cc_library(
     hdrs = ["raw_packet_file.h"],
 )
 
-
 cc_binary(
     name = "example_lidar_udp",
     srcs = ["examples/example_lidar_udp.cpp"],
@@ -84,11 +83,11 @@ cc_binary(
     name = "unitree_lidar_packet_replayer",
     srcs = ["unitree_lidar_packet_replayer.cc"],
     deps = [
-        ":raw_packet_file",
-        ":unilidar_sdk2",
+        "//unitree_lidar_sdk/calibration:calibration_optimizer",
+        "//unitree_lidar_sdk/calibration:plane_extractor",
+        "//unitree_lidar_sdk/calibration:replayer_common",
+        "//unitree_lidar_sdk/calibration:replayer_viewer",
         "@system_gflags//:gflags",
         "@system_glog//:glog",
-        "@eigen//:eigen",
-        "@pangolin//:pangolin",
     ],
 )

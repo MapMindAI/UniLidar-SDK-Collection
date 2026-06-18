@@ -78,7 +78,7 @@ Example:
 bazel-bin/unitree_lidar_sdk/unitree_lidar_packet_replayer \
   --logtostderr=1 --input_path=data/unitree_lidar_packets.bin \
   --accumulate_rings=50 \
-  --merge_beginning_frames=10
+  --merge_beginning_frames=100
 ```
 
 Useful flags:
@@ -91,6 +91,12 @@ Useful flags:
 - `--merged_point_size=<size>`
 - `--min_range_m=<min>`
 - `--max_range_m=<max>`
+- `--extract_planes=true|false`
+- `--max_planes=<N>`
+- `--plane_inlier_threshold_m=<meters>`
+- `--optimize_calibration=true|false`
+- `--range_model_candidates=constant,linear,quadratic`
+- `--optimize_ring_alpha_offsets=true|false`
 
 Viewer controls:
 
@@ -99,6 +105,8 @@ Viewer controls:
 - `Reset`: go back to frame 0
 - `Loop`: restart when reaching the end
 - `Show Merged`: overlay the merged first `N` frames as a static background cloud
+- `Show Planes`: draw extracted plane rectangles and normals
+- `Show Plane Pts`: draw plane inlier points from the merged cloud
 - `Point Size`: point size in Pangolin
 - `Merged Pt Size`: point size for the merged background cloud
 
@@ -158,6 +166,37 @@ The relevant vendor fields come from `unilidar_sdk2::LidarPointDataPacket`:
 - `range_scale`
 
 If you are debugging plane striping or line-to-line offsets, recording packets and replaying them is the easiest way to test alternate hypotheses without needing the live device.
+
+## Plane-Based Calibration Estimation
+
+The replayer can now estimate a simple calibration from the merged beginning cloud:
+
+1. extract up to `--max_planes` planes with RANSAC
+2. report point-to-plane residuals on the merged cloud
+3. search `delta_range_alpha_fcn(alpha)` models and optional per-ring `delta_alpha_min`
+
+The optimization objective is RMS point-to-nearest-plane distance for points within
+`--calibration_assignment_threshold_m`.
+
+Example:
+
+```bash
+bazel-bin/unitree_lidar_sdk/unitree_lidar_packet_replayer \
+  --input_path=data/unitree_lidar_packets.bin \
+  --accumulate_rings=50 \
+  --merge_beginning_frames=10 \
+  --plane_inlier_threshold_m=0.05 \
+  --range_model_candidates=constant,linear,quadratic \
+  --optimize_ring_alpha_offsets=true
+```
+
+Current range models are:
+
+- `constant`: `c0`
+- `linear`: `c0 + c1 * alpha`
+- `quadratic`: `c0 + c1 * alpha + c2 * alpha^2`
+
+The selected coefficients and ring alpha offsets are printed to the log.
 
 ## Notes
 
