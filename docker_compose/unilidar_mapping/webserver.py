@@ -355,11 +355,20 @@ INDEX_HTML = """<!doctype html>
 
 
 def run_command(command):
+    printable = " ".join(shlex.quote(str(part)) for part in command)
+    sys.stderr.write(f"[webserver] run: {printable}\n")
     process = subprocess.run(
         command,
         capture_output=True,
         text=True,
         cwd=str(REPO_ROOT),
+    )
+    sys.stderr.write(
+        "[webserver] done: rc={rc} stdout={stdout_len} stderr={stderr_len}\n".format(
+            rc=process.returncode,
+            stdout_len=len(process.stdout or ""),
+            stderr_len=len(process.stderr or ""),
+        )
     )
     return {
         "returncode": process.returncode,
@@ -448,6 +457,7 @@ class UniLidarHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        self.log_message("GET %s", parsed.path)
         if parsed.path == "/":
             self._write_html(INDEX_HTML)
             return
@@ -488,14 +498,17 @@ class UniLidarHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        self.log_message("POST %s", parsed.path)
         if parsed.path == "/api/start":
             result = run_command([str(START_SCRIPT), DEFAULT_COMPOSE_NAME])
             if result["returncode"] == 0:
                 logs = get_recent_logs(200, attempts=5, delay_sec=1.0)
                 if logs["returncode"] == 0:
                     result["logs"] = logs["stdout"] or logs["stderr"]
+                self.log_message("start succeeded")
                 self._write_json(result)
             else:
+                self.log_message("start failed: %s", result["stderr"] or result["stdout"])
                 self._write_json(
                     format_command_error(result, "Failed to start UniLidar."),
                     HTTPStatus.BAD_GATEWAY,
@@ -504,8 +517,10 @@ class UniLidarHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/stop":
             result = run_command([str(STOP_SCRIPT), DEFAULT_COMPOSE_NAME])
             if result["returncode"] == 0:
+                self.log_message("stop succeeded")
                 self._write_json(result)
             else:
+                self.log_message("stop failed: %s", result["stderr"] or result["stdout"])
                 self._write_json(
                     format_command_error(result, "Failed to stop UniLidar."),
                     HTTPStatus.BAD_GATEWAY,
@@ -514,8 +529,10 @@ class UniLidarHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/copy":
             result = run_command([str(COPY_SCRIPT)])
             if result["returncode"] == 0:
+                self.log_message("copy succeeded")
                 self._write_json(result)
             else:
+                self.log_message("copy failed: %s", result["stderr"] or result["stdout"])
                 self._write_json(
                     format_command_error(result, "Failed to copy data to drive."),
                     HTTPStatus.BAD_GATEWAY,
