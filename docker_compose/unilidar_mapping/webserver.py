@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 import sys
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -238,8 +239,12 @@ INDEX_HTML = """<!doctype html>
       actionInFlight = busy;
       startBtn.disabled = busy;
       stopBtn.disabled = busy;
-      copyBtn.disabled = busy;
-      refreshBtn.disabled = busy;
+      if (copyBtn) {
+        copyBtn.disabled = busy;
+      }
+      if (refreshBtn) {
+        refreshBtn.disabled = busy;
+      }
     }
 
     async function refreshStatus() {
@@ -272,13 +277,13 @@ INDEX_HTML = """<!doctype html>
       try {
         const data = await fetchJson(path, { method: "POST" });
         setMessage(data.stdout || "Command finished.");
-        if (path === "/api/copy") {
+        if (path === "/api/copy" && copyLogs) {
           copyLogs.textContent = [data.stdout, data.stderr].filter(Boolean).join("\n\n") || "No output.";
           copyLogs.scrollTop = copyLogs.scrollHeight;
         }
       } catch (error) {
         setMessage(error.message, true);
-        if (path === "/api/copy") {
+        if (path === "/api/copy" && copyLogs) {
           copyLogs.textContent = error.message;
         }
       } finally {
@@ -290,11 +295,15 @@ INDEX_HTML = """<!doctype html>
 
     startBtn.addEventListener("click", () => runAction("/api/start"));
     stopBtn.addEventListener("click", () => runAction("/api/stop"));
-    copyBtn.addEventListener("click", () => runAction("/api/copy"));
-    refreshBtn.addEventListener("click", async () => {
-      await refreshStatus();
-      await refreshLogs();
-    });
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => runAction("/api/copy"));
+    }
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", async () => {
+        await refreshStatus();
+        await refreshLogs();
+      });
+    }
 
     refreshStatus();
     refreshLogs();
