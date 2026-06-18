@@ -4,7 +4,6 @@ import os
 import shlex
 import subprocess
 import sys
-import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -96,7 +95,7 @@ INDEX_HTML = """<!doctype html>
       font-weight: 600;
       color: white;
       cursor: pointer;
-      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease, opacity 120ms ease;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
     }
     button:hover {
@@ -239,12 +238,8 @@ INDEX_HTML = """<!doctype html>
       actionInFlight = busy;
       startBtn.disabled = busy;
       stopBtn.disabled = busy;
-      if (copyBtn) {
-        copyBtn.disabled = busy;
-      }
-      if (refreshBtn) {
-        refreshBtn.disabled = busy;
-      }
+      copyBtn.disabled = busy;
+      refreshBtn.disabled = busy;
     }
 
     async function refreshStatus() {
@@ -270,21 +265,21 @@ INDEX_HTML = """<!doctype html>
       }
     }
 
-    async function runAction(path) {
+    async function runAction(path, outputTarget = null) {
       if (actionInFlight) return;
       setActionState(true);
       setMessage("Running " + path.replace("/api/", "") + "...");
       try {
         const data = await fetchJson(path, { method: "POST" });
         setMessage(data.stdout || "Command finished.");
-        if (path === "/api/copy" && copyLogs) {
-          copyLogs.textContent = [data.stdout, data.stderr].filter(Boolean).join("\n\n") || "No output.";
-          copyLogs.scrollTop = copyLogs.scrollHeight;
+        if (outputTarget) {
+          outputTarget.textContent = [data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "No output.";
+          outputTarget.scrollTop = outputTarget.scrollHeight;
         }
       } catch (error) {
         setMessage(error.message, true);
-        if (path === "/api/copy" && copyLogs) {
-          copyLogs.textContent = error.message;
+        if (outputTarget) {
+          outputTarget.textContent = error.message;
         }
       } finally {
         setActionState(false);
@@ -295,15 +290,11 @@ INDEX_HTML = """<!doctype html>
 
     startBtn.addEventListener("click", () => runAction("/api/start"));
     stopBtn.addEventListener("click", () => runAction("/api/stop"));
-    if (copyBtn) {
-      copyBtn.addEventListener("click", () => runAction("/api/copy"));
-    }
-    if (refreshBtn) {
-      refreshBtn.addEventListener("click", async () => {
-        await refreshStatus();
-        await refreshLogs();
-      });
-    }
+    copyBtn.addEventListener("click", () => runAction("/api/copy", copyLogs));
+    refreshBtn.addEventListener("click", async () => {
+      await refreshStatus();
+      await refreshLogs();
+    });
 
     refreshStatus();
     refreshLogs();
