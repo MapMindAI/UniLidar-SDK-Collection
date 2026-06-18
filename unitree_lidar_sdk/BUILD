@@ -86,6 +86,7 @@ cc_binary(
         ":raw_packet_file",
         ":unilidar_sdk2",
         "//unitree_lidar_sdk/calibration:replayer_common",
+        "//unitree_lidar_sdk/calibration:replayer_viewer",
         "@system_gflags//:gflags",
         "@system_glog//:glog",
         "@eigen//:eigen",

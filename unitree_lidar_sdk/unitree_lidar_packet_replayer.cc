@@ -18,6 +18,7 @@
 
 #include "gflags/gflags.h"
 #include "unitree_lidar_sdk/calibration/replayer_common.h"
+#include "unitree_lidar_sdk/calibration/replayer_viewer.h"
 #include "unitree_lidar_sdk/include/unitree_lidar_protocol.h"
 #include "unitree_lidar_sdk/raw_packet_file.h"
 
@@ -37,47 +38,20 @@ DEFINE_bool(orthographic_camera, true, "Use an orthographic camera in the Pangol
 DEFINE_double(orthographic_extent, 10.0,
               "Half extent of the orthographic camera frustum in viewer units.");
 
-namespace pangolin {
-
-struct OrthographicHandler3D : Handler3D {
-  OrthographicHandler3D(OpenGlRenderState* cam_state, AxisDirection enforce_up = AxisNone,
-                        float trans_scale = 0.01f, float zoom_fraction = PANGO_DFLT_HANDLER3D_ZF,
-                        GLprecision initial_extent = 50)
-      : Handler3D((*cam_state), enforce_up, trans_scale, zoom_fraction), current(initial_extent) {}
-
-  GLprecision current = 50;
-
-  void Mouse(View& display, MouseButton button, int x, int y,
-             bool pressed,                 // NOLINT
-             int button_state) override {  // NOLINT
-    last_pos[0] = static_cast<float>(x);
-    last_pos[1] = static_cast<float>(y);
-    funcKeyState = 0;
-    if (pressed) {
-      GetPosNormal(display, x, y, p, Pw, Pc, n, last_z);
-      if (ValidWinDepth(p[2])) {
-        last_z = p[2];
-        std::copy(Pc, Pc + 3, rot_center);
-      }
-      if (button == MouseWheelUp || button == MouseWheelDown) {
-        const GLprecision change = (button == MouseWheelUp ? 1 : -1) * 50 * tf;
-        current -= change * std::pow(std::log(std::abs(current) + 1), 2);
-        current = std::max<GLprecision>(1e-3, current);
-        cam_state->SetProjectionMatrix(pangolin::ProjectionMatrixOrthographic(
-            -current, current, -current, current, -5000, 5000));
-        return;
-      }
-      funcKeyState = button_state;
-    }
-
-    Handler3D::Mouse(display, button, x, y, pressed, button_state);
-  }
-};
-
-}  // namespace pangolin
-
 namespace calibration {
 namespace internal {
+
+std::vector<RecordedPacket> packets;
+std::vector<ReplayFrame> frames;
+std::unique_ptr<ReplayFrame> merged_beginning_frame;
+
+double factor_a0 = -0.014;
+double factor_a1 = 0.0;
+double factor_a2 = 0.0;
+
+float alpha_bias(float theta, int ring_id) {
+  return factor_a0 + factor_a1 * sin(theta);
+}
 
 void AppendPacketPoints(const unilidar_sdk2::LidarPointDataPacket& packet, int ring_index,
                         int max_rings, std::vector<CloudPoint>* points) {
@@ -107,6 +81,8 @@ void AppendPacketPoints(const unilidar_sdk2::LidarPointDataPacket& packet, int r
   float alpha_cur = packet.data.angle_min + angle_bias;
   float theta_cur = packet.data.com_horizontal_angle_start + theta_bias;
   const Eigen::Vector3f color = ColorForRing(ring_index, std::max(1, max_rings));
+
+  alpha_cur += alpha_bias(theta_cur, ring_index);
 
   for (int i = 0; i < num_of_points; ++i, alpha_cur += alpha_step, theta_cur += theta_step) {
     if (packet.data.ranges[i] < 1) {
@@ -225,8 +201,21 @@ ReplayFrame BuildMergedBeginningFrame(const std::vector<ReplayFrame>& frames, in
   return merged;
 }
 
-void RunViewer(const std::vector<ReplayFrame>& frames, const ReplayFrame* merged_beginning_frame,
-               int merged_frame_count) {
+void RebuildMap() {
+  frames = internal::BuildReplayFrames(packets, FLAGS_accumulate_rings);
+  LOG(INFO) << "Prepared " << frames.size()
+            << " replay frames using accumulate_rings=" << std::max(1, FLAGS_accumulate_rings);
+  if (FLAGS_merge_beginning_frames > 0) {
+    merged_beginning_frame = std::make_unique<ReplayFrame>(
+        internal::BuildMergedBeginningFrame(frames, FLAGS_merge_beginning_frames));
+    LOG(INFO) << "Merged first "
+              << std::min(static_cast<int>(frames.size()),
+                          std::max(0, FLAGS_merge_beginning_frames))
+              << " frames into " << merged_beginning_frame->points.size() << " background points.";
+  }
+}
+
+void RunViewer() {
   CHECK(!frames.empty()) << "No replay frames loaded.";
   using Clock = std::chrono::steady_clock;
 
@@ -242,18 +231,20 @@ void RunViewer(const std::vector<ReplayFrame>& frames, const ReplayFrame* merged
   pangolin::Var<bool> ui_next("menu.Next", false, false);
   pangolin::Var<bool> ui_reset("menu.Reset", false, false);
   pangolin::Var<bool> ui_show_axis("menu.Show Axis", true, true);
-  pangolin::Var<bool> ui_show_merged("menu.Show Merged", merged_beginning_frame != nullptr, true);
+  pangolin::Var<bool> ui_show_merged("menu.Show Merged", true, true);
   pangolin::Var<bool> ui_show_points("menu.Show Points", true, true);
   pangolin::Var<double> ui_point_size("menu.Point Size", FLAGS_point_size, 1.0, 8.0, true);
   pangolin::Var<double> ui_merged_point_size("menu.Merged Pt Size", FLAGS_merged_point_size, 1.0,
                                              8.0, true);
   pangolin::Var<double> ui_play_hz("menu.Play Hz", FLAGS_play_hz, 0.5, 30.0, true);
+  pangolin::Var<double> ui_factor_a0("menu.Factor A0", factor_a0, -0.02, 0.02, false);
+  pangolin::Var<double> ui_factor_a1("menu.Factor A1", factor_a1, -0.02, 0.02, false);
+  pangolin::Var<double> ui_factor_a2("menu.Factor A2", factor_a2, -0.02, 0.02, false);
   pangolin::Var<int> ui_frame_idx("menu.Frame", 0, 0,
                                   std::max(0, static_cast<int>(frames.size()) - 1), false);
   pangolin::Var<int> ui_packet_count("menu.Packets/Frame", std::max(1, FLAGS_accumulate_rings), 0,
                                      0, false);
   pangolin::Var<int> ui_points("menu.Points", 0, 0, 0, false);
-  pangolin::Var<int> ui_merged_frames("menu.Merged Frames", merged_frame_count, 0, 0, false);
   pangolin::Var<int> ui_merged_points("menu.Merged Points",
                                       merged_beginning_frame == nullptr
                                           ? 0
@@ -283,9 +274,30 @@ void RunViewer(const std::vector<ReplayFrame>& frames, const ReplayFrame* merged
                     .SetHandler(new pangolin::Handler3D(*render_state)));
   }
 
+  auto check_factor_changed = [&]() {
+    bool changed = false;
+    if (ui_factor_a0 != factor_a0) {
+      changed = true;
+      factor_a0 = ui_factor_a0;
+    }
+    if (ui_factor_a1 != factor_a1) {
+      changed = true;
+      factor_a1 = ui_factor_a1;
+    }
+    if (ui_factor_a2 != factor_a2) {
+      changed = true;
+      factor_a2 = ui_factor_a2;
+    }
+    if (changed) {
+      RebuildMap();
+    }
+    return changed;
+  };
+
   size_t frame_index = 0;
   auto last_advance_time = Clock::now();
   while (!pangolin::ShouldQuit()) {
+    check_factor_changed();
     const auto now = Clock::now();
     const double elapsed_sec =
         std::chrono::duration<double>(now - last_advance_time).count();
@@ -355,28 +367,13 @@ int Run(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   CHECK(!FLAGS_input_path.empty()) << "input_path is required.";
 
-  const std::vector<RecordedPacket> packets = internal::LoadPackets(FLAGS_input_path);
-  CHECK(!packets.empty()) << "No packets found in " << FLAGS_input_path;
-  LOG(INFO) << "Loaded " << packets.size() << " raw lidar packets from " << FLAGS_input_path;
+  internal::packets = internal::LoadPackets(FLAGS_input_path);
+  CHECK(!internal::packets.empty()) << "No packets found in " << FLAGS_input_path;
+  LOG(INFO) << "Loaded " << internal::packets.size() << " raw lidar packets from "
+            << FLAGS_input_path;
 
-  const std::vector<ReplayFrame> frames =
-      internal::BuildReplayFrames(packets, FLAGS_accumulate_rings);
-  LOG(INFO) << "Prepared " << frames.size() << " replay frames using accumulate_rings="
-            << std::max(1, FLAGS_accumulate_rings);
-  std::unique_ptr<ReplayFrame> merged_beginning_frame;
-  if (FLAGS_merge_beginning_frames > 0) {
-    merged_beginning_frame = std::make_unique<ReplayFrame>(
-        internal::BuildMergedBeginningFrame(frames, FLAGS_merge_beginning_frames));
-    LOG(INFO) << "Merged first "
-              << std::min(static_cast<int>(frames.size()),
-                          std::max(0, FLAGS_merge_beginning_frames))
-              << " frames into " << merged_beginning_frame->points.size() << " background points.";
-  }
-  internal::RunViewer(
-      frames, merged_beginning_frame.get(),
-      merged_beginning_frame == nullptr
-          ? 0
-          : std::min(static_cast<int>(frames.size()), std::max(0, FLAGS_merge_beginning_frames)));
+  internal::RebuildMap();
+  internal::RunViewer();
   return 0;
 }
 

@@ -9,46 +9,6 @@
 
 #include <pangolin/pangolin.h>
 
-namespace pangolin {
-
-struct OrthographicHandler3D : Handler3D {
-  OrthographicHandler3D(OpenGlRenderState* cam_state, AxisDirection enforce_up = AxisNone,
-                        float trans_scale = 0.01f,
-                        float zoom_fraction = PANGO_DFLT_HANDLER3D_ZF,
-                        GLprecision initial_extent = 50)
-      : Handler3D((*cam_state), enforce_up, trans_scale, zoom_fraction),
-        current(initial_extent) {}
-
-  GLprecision current = 50;
-
-  void Mouse(View& display, MouseButton button, int x, int y, bool pressed,  // NOLINT
-             int button_state) override {                                     // NOLINT
-    last_pos[0] = static_cast<float>(x);
-    last_pos[1] = static_cast<float>(y);
-    funcKeyState = 0;
-    if (pressed) {
-      GetPosNormal(display, x, y, p, Pw, Pc, n, last_z);
-      if (ValidWinDepth(p[2])) {
-        last_z = p[2];
-        std::copy(Pc, Pc + 3, rot_center);
-      }
-      if (button == MouseWheelUp || button == MouseWheelDown) {
-        const GLprecision change = (button == MouseWheelUp ? 1 : -1) * 50 * tf;
-        current -= change * std::pow(std::log(std::abs(current) + 1), 2);
-        current = std::max<GLprecision>(1e-3, current);
-        cam_state->SetProjectionMatrix(pangolin::ProjectionMatrixOrthographic(
-            -current, current, -current, current, -5000, 5000));
-        return;
-      }
-      funcKeyState = button_state;
-    }
-
-    Handler3D::Mouse(display, button, x, y, pressed, button_state);
-  }
-};
-
-}  // namespace pangolin
-
 namespace calibration {
 namespace {
 
