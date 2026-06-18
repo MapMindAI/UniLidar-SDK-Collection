@@ -54,7 +54,7 @@ Example:
 
 ```bash
 bazel-bin/unitree_lidar_sdk/unitree_lidar_packet_recorder \
-  --serial_port=/dev/ttyACM0 \
+  --logtostderr=1 --serial_port=/dev/ttyACM0 \
   --output_path=data/unitree_lidar_packets.bin \
   --max_packets=1000
 ```
@@ -76,7 +76,7 @@ Example:
 
 ```bash
 bazel-bin/unitree_lidar_sdk/unitree_lidar_packet_replayer \
-  --input_path=data/unitree_lidar_packets.bin \
+  --logtostderr=1 --input_path=data/unitree_lidar_packets.bin \
   --accumulate_rings=50 \
   --merge_beginning_frames=10
 ```
