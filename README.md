@@ -62,6 +62,31 @@ This path exists so the project can control:
 - per-point relative timing
 - timestamp policy when `--use_system_timestamp` is enabled
 
+## Highlight: Calibration
+
+This repo includes offline calibration tools for recorded Unitree raw packet
+files.
+
+- `unitree_lidar_packet_auto_calibrator`: extracts planes from merged point
+  clouds, evaluates point-to-plane residuals, and searches calibration
+  parameters automatically
+- `unitree_lidar_packet_manual_calibrator`: opens the same replay viewer with
+  manual calibration parameters for visual inspection and tuning
+
+The calibration code is organized under
+[`unitree_lidar_sdk/calibration/`](/unitree_lidar_sdk/calibration), and the
+full workflow is documented in
+[`unitree_lidar_sdk/README_calibrate.md`](/unitree_lidar_sdk/README_calibrate.md).
+
+**Current Issue**: the automatic calibration still does not give an ideal result.
+I currently use manual adjustment in `unitree_lidar_packet_replayer`: load recorded packets,
+apply hand-tuned correction factors during decode, rebuild the merged cloud, and inspect the
+result in Pangolin until the geometry looks consistent.
+
+| | before | after |
+|---|-----|-----|
+| top view | ![assets/raw_top.png] | ![assets/calib_top.png] |
+| side view | ![assets/raw_side.png] | ![assets/calib_side.png] |
 
 ## Remote Web Control
 
