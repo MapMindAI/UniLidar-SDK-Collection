@@ -226,8 +226,8 @@ INDEX_HTML = """<!doctype html>
       <h1>UniLidar Remote Control</h1>
       <p>Start or stop the compose stack and watch the live debug output from <code>UniLidarSdk</code>.</p>
 
-      <div class="status-box" style="margin-bottom: 20px;">
-        <h2 class="panel-title">Calibration Parameters</h2>
+      <details class="status-box" style="margin-bottom: 20px;">
+        <summary class="panel-title" style="cursor: pointer; list-style: none;">Calibration Parameters</summary>
         <p class="panel-note">These values are written back into the compose file. Restart the stack after saving to apply them.</p>
         <div class="param-grid">
           <div class="field">
@@ -248,10 +248,10 @@ INDEX_HTML = """<!doctype html>
           <button class="ghost" id="zeroParamsBtn">All Zeros</button>
           <button class="copy" id="saveParamsBtn">Save Parameters</button>
         </div>
-      </div>
+      </details>
 
-      <div class="status-box" style="margin-bottom: 20px;">
-        <h2 class="panel-title">Recorder Bag Name</h2>
+      <details class="status-box" style="margin-bottom: 20px;">
+        <summary class="panel-title" style="cursor: pointer; list-style: none;">Recorder Bag Name</summary>
         <p class="panel-note">Add an optional postfix to recorder bag names, for example <code>_postfix</code>.</p>
         <div class="field">
           <label for="bagNameSuffix">bag postfix</label>
@@ -260,7 +260,7 @@ INDEX_HTML = """<!doctype html>
         <div class="toolbar" style="margin-bottom: 0;">
           <button class="copy" id="saveBagSuffixBtn">Save Bag Postfix</button>
         </div>
-      </div>
+      </details>
 
       <div class="status-grid">
         <div class="status-box">
