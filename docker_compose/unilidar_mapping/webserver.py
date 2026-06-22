@@ -35,6 +35,7 @@ COPY_SCRIPT = Path(
     )
 )
 COMPOSE_PARAM_NAMES = ("alpha_bais_bias", "range_fix_a0", "range_fix_a1")
+RECORDER_BAG_SUFFIX_RE = re.compile(r'(?m)^(?P<prefix>\s*BAG_NAME_SUFFIX=")(?P<suffix>[^"]*)(?P<suffix_end>")\s*$')
 
 PARAM_LINE_RE = re.compile(
     r"(?P<prefix>--alpha_bais_bias=)(?P<alpha_bais_bias>\S+)"
@@ -244,6 +245,18 @@ INDEX_HTML = """<!doctype html>
         </div>
       </div>
 
+      <div class="status-box" style="margin-bottom: 20px;">
+        <h2 class="panel-title">Recorder Bag Name</h2>
+        <p class="panel-note">Add an optional postfix to recorder bag names, for example <code>_postfix</code>.</p>
+        <div class="field">
+          <label for="bagNameSuffix">bag postfix</label>
+          <input id="bagNameSuffix" type="text" spellcheck="false" placeholder="_postfix">
+        </div>
+        <div class="toolbar" style="margin-bottom: 0;">
+          <button class="copy" id="saveBagSuffixBtn">Save Bag Postfix</button>
+        </div>
+      </div>
+
       <div class="status-grid">
         <div class="status-box">
           <span class="label">Container Status</span>
@@ -298,6 +311,8 @@ INDEX_HTML = """<!doctype html>
     const defaultParamsBtn = document.getElementById("defaultParamsBtn");
     const zeroParamsBtn = document.getElementById("zeroParamsBtn");
     const saveParamsBtn = document.getElementById("saveParamsBtn");
+    const bagNameSuffix = document.getElementById("bagNameSuffix");
+    const saveBagSuffixBtn = document.getElementById("saveBagSuffixBtn");
     const runningStatus = document.getElementById("runningStatus");
     const containerName = document.getElementById("containerName");
     const composeFile = document.getElementById("composeFile");
@@ -337,6 +352,7 @@ INDEX_HTML = """<!doctype html>
       topicsBtn.disabled = busy;
       refreshBtn.disabled = busy;
       saveParamsBtn.disabled = busy;
+      saveBagSuffixBtn.disabled = busy;
     }
 
     async function refreshStatus() {
@@ -364,6 +380,10 @@ INDEX_HTML = """<!doctype html>
         range_fix_a0: rangeFixA0.value,
         range_fix_a1: rangeFixA1.value,
       };
+    }
+
+    function setBagSuffix(value) {
+      bagNameSuffix.value = value ?? "";
     }
 
     function setPresetAndSave(params) {
@@ -395,6 +415,15 @@ INDEX_HTML = """<!doctype html>
       try {
         const data = await fetchJson("/api/params");
         setParameterInputs(data.params || {});
+      } catch (error) {
+        setMessage(error.message, true);
+      }
+    }
+
+    async function refreshBagSuffix() {
+      try {
+        const data = await fetchJson("/api/bag_suffix");
+        setBagSuffix(data.bag_name_suffix || "");
       } catch (error) {
         setMessage(error.message, true);
       }
@@ -457,6 +486,32 @@ INDEX_HTML = """<!doctype html>
       }
     }
 
+    async function saveBagSuffix() {
+      if (actionInFlight) return;
+      setActionState(true);
+      setMessage("Saving bag postfix...");
+      try {
+        const payload = {
+          bag_name_suffix: bagNameSuffix.value,
+        };
+        const data = await fetchJson("/api/bag_suffix", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        setMessage(data.stdout || "Bag postfix saved.");
+        setBagSuffix(data.bag_name_suffix || payload.bag_name_suffix);
+      } catch (error) {
+        setMessage(error.message, true);
+      } finally {
+        setActionState(false);
+        await refreshStatus();
+        await refreshLogs();
+      }
+    }
+
     startBtn.addEventListener("click", () => runAction("/api/start"));
     stopBtn.addEventListener("click", () => runAction("/api/stop"));
     copyBtn.addEventListener("click", () => runAction("/api/copy", copyLogs));
@@ -468,14 +523,17 @@ INDEX_HTML = """<!doctype html>
       range_fix_a1: "0",
     }));
     saveParamsBtn.addEventListener("click", saveParameters);
+    saveBagSuffixBtn.addEventListener("click", saveBagSuffix);
     refreshBtn.addEventListener("click", async () => {
       await refreshStatus();
       await refreshParameters();
+      await refreshBagSuffix();
       await refreshLogs();
     });
 
     refreshStatus();
     refreshParameters();
+    refreshBagSuffix();
     refreshLogs();
     setInterval(refreshStatus, 3000);
     setInterval(refreshLogs, 2000);
@@ -517,6 +575,18 @@ def read_compose_parameters():
     return params
 
 
+def read_bag_name_suffix():
+    compose_path = Path(compose_file_path(DEFAULT_COMPOSE_NAME))
+    if not compose_path.is_file():
+        raise FileNotFoundError(f"compose file not found: {compose_path}")
+
+    content = compose_path.read_text(encoding="utf-8")
+    match = RECORDER_BAG_SUFFIX_RE.search(content)
+    if not match:
+        raise ValueError("Could not find bag postfix in compose file.")
+    return match.group("suffix")
+
+
 def write_compose_parameters(values):
     compose_path = Path(compose_file_path(DEFAULT_COMPOSE_NAME))
     if not compose_path.is_file():
@@ -542,6 +612,32 @@ def write_compose_parameters(values):
     updated = content[: match.start()] + replacement + content[match.end() :]
     compose_path.write_text(updated, encoding="utf-8")
     return {name: replace_value(name) for name in COMPOSE_PARAM_NAMES}
+
+
+def write_bag_name_suffix(value):
+    compose_path = Path(compose_file_path(DEFAULT_COMPOSE_NAME))
+    if not compose_path.is_file():
+        raise FileNotFoundError(f"compose file not found: {compose_path}")
+
+    content = compose_path.read_text(encoding="utf-8")
+    match = RECORDER_BAG_SUFFIX_RE.search(content)
+    if not match:
+        raise ValueError("Could not find bag postfix in compose file.")
+
+    suffix = "" if value is None else str(value)
+    if "\n" in suffix or "\r" in suffix:
+        raise ValueError("bag postfix must be a single line.")
+    escaped_suffix = (
+        suffix.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("$", "\\$")
+        .replace("`", "\\`")
+    )
+
+    replacement = f'{match.group("prefix")}{escaped_suffix}{match.group("suffix_end")}'
+    updated = content[: match.start()] + replacement + content[match.end() :]
+    compose_path.write_text(updated, encoding="utf-8")
+    return suffix
 
 
 def get_status():
@@ -618,6 +714,12 @@ class UniLidarHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/status":
             self._write_json(get_status())
+            return
+        if parsed.path == "/api/bag_suffix":
+            try:
+                self._write_json({"bag_name_suffix": read_bag_name_suffix()})
+            except Exception as error:
+                self._write_json({"error": str(error)}, HTTPStatus.BAD_GATEWAY)
             return
         if parsed.path == "/api/logs":
             query = parse_qs(parsed.query)
@@ -720,6 +822,23 @@ class UniLidarHandler(BaseHTTPRequestHandler):
             try:
                 params = write_compose_parameters(payload)
                 self._write_json({"stdout": "Parameters saved.", "params": params})
+            except Exception as error:
+                self._write_json({"error": str(error)}, HTTPStatus.BAD_GATEWAY)
+            return
+        if parsed.path == "/api/bag_suffix":
+            try:
+                raw_length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                raw_length = 0
+            raw_body = self.rfile.read(max(0, raw_length)) if raw_length else b""
+            try:
+                payload = json.loads(raw_body.decode("utf-8") or "{}")
+            except json.JSONDecodeError as error:
+                self._write_json({"error": f"Invalid JSON payload: {error}"}, HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                bag_name_suffix = write_bag_name_suffix(payload.get("bag_name_suffix", ""))
+                self._write_json({"stdout": "Bag postfix saved.", "bag_name_suffix": bag_name_suffix})
             except Exception as error:
                 self._write_json({"error": str(error)}, HTTPStatus.BAD_GATEWAY)
             return

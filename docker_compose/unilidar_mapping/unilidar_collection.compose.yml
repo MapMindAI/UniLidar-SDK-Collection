@@ -44,6 +44,7 @@ services:
         source /opt/ros/humble/setup.bash
         export LD_LIBRARY_PATH="/opt/ros/humble/lib:/opt/ros/humble/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
         mkdir -p '/unilidar_sdk2_bazel/data/rosbags'
-        BAG_NAME="unilidar_record_$(date +%Y%m%d_%H%M%S)"
+        BAG_NAME_SUFFIX=""
+        BAG_NAME="unilidar_record_$(date +%Y%m%d_%H%M%S)${BAG_NAME_SUFFIX}"
         echo "Save to $${BAG_NAME}"
         exec ros2 bag record -o "/unilidar_sdk2_bazel/data/rosbags/$${BAG_NAME}" -a
