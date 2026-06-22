@@ -223,7 +223,6 @@ INDEX_HTML = """<!doctype html>
       <div class="toolbar">
         <button class="start" id="startBtn">Start UniLidar</button>
         <button class="stop" id="stopBtn">Stop UniLidar</button>
-        <button class="copy" id="copyBtn">Copy to Drive</button>
         <button class="ghost" id="refreshBtn">Refresh Logs</button>
       </div>
 
@@ -247,6 +246,8 @@ INDEX_HTML = """<!doctype html>
           </div>
         </div>
         <div class="toolbar" style="margin-bottom: 0;">
+          <button class="ghost" id="defaultParamsBtn">Load Defaults</button>
+          <button class="ghost" id="zeroParamsBtn">All Zeros</button>
           <button class="copy" id="saveParamsBtn">Save Parameters</button>
         </div>
       </div>
@@ -266,12 +267,19 @@ INDEX_HTML = """<!doctype html>
         </div>
       </div>
 
-      <div class="status-box" style="margin-bottom: 20px;">
+      <pre class="logs" id="logs">Loading logs...</pre>
+
+      <div class="status-box" style="margin-top: 20px;">
+        <span class="label">Copy Controls</span>
+        <div class="toolbar" style="margin: 12px 0 0;">
+          <button class="copy" id="copyBtn">Copy to Drive</button>
+        </div>
+      </div>
+
+      <div class="status-box" style="margin-top: 20px;">
         <span class="label">Copy Result Log</span>
         <pre class="logs" id="copyLogs" style="min-height: 180px; max-height: 260px; margin-top: 0;">No copy has run yet.</pre>
       </div>
-
-      <pre class="logs" id="logs">Loading logs...</pre>
     </div>
   </div>
 
@@ -280,6 +288,8 @@ INDEX_HTML = """<!doctype html>
     const stopBtn = document.getElementById("stopBtn");
     const copyBtn = document.getElementById("copyBtn");
     const refreshBtn = document.getElementById("refreshBtn");
+    const defaultParamsBtn = document.getElementById("defaultParamsBtn");
+    const zeroParamsBtn = document.getElementById("zeroParamsBtn");
     const saveParamsBtn = document.getElementById("saveParamsBtn");
     const runningStatus = document.getElementById("runningStatus");
     const containerName = document.getElementById("containerName");
@@ -291,6 +301,11 @@ INDEX_HTML = """<!doctype html>
     const rangeFixA1 = document.getElementById("rangeFixA1");
     const message = document.getElementById("message");
     let actionInFlight = false;
+    const defaultCalibrationParams = {
+      alpha_bais_bias: "-0.014",
+      range_fix_a0: "-0.0095",
+      range_fix_a1: "-0.007",
+    };
 
     async function fetchJson(url, options) {
       const response = await fetch(url, options);
@@ -332,6 +347,19 @@ INDEX_HTML = """<!doctype html>
       alphaBaisBias.value = params.alpha_bais_bias ?? "";
       rangeFixA0.value = params.range_fix_a0 ?? "";
       rangeFixA1.value = params.range_fix_a1 ?? "";
+    }
+
+    function getParameterInputs() {
+      return {
+        alpha_bais_bias: alphaBaisBias.value,
+        range_fix_a0: rangeFixA0.value,
+        range_fix_a1: rangeFixA1.value,
+      };
+    }
+
+    function setPresetAndSave(params) {
+      setParameterInputs(params);
+      return saveParameters(getParameterInputs());
     }
 
     async function refreshParameters() {
@@ -376,16 +404,12 @@ INDEX_HTML = """<!doctype html>
       }
     }
 
-    async function saveParameters() {
+    async function saveParameters(overrides = null) {
       if (actionInFlight) return;
       setActionState(true);
       setMessage("Saving parameters...");
       try {
-        const payload = {
-          alpha_bais_bias: alphaBaisBias.value,
-          range_fix_a0: rangeFixA0.value,
-          range_fix_a1: rangeFixA1.value,
-        };
+        const payload = overrides || getParameterInputs();
         const data = await fetchJson("/api/params", {
           method: "POST",
           headers: {
@@ -407,6 +431,12 @@ INDEX_HTML = """<!doctype html>
     startBtn.addEventListener("click", () => runAction("/api/start"));
     stopBtn.addEventListener("click", () => runAction("/api/stop"));
     copyBtn.addEventListener("click", () => runAction("/api/copy", copyLogs));
+    defaultParamsBtn.addEventListener("click", () => setPresetAndSave(defaultCalibrationParams));
+    zeroParamsBtn.addEventListener("click", () => setPresetAndSave({
+      alpha_bais_bias: "0",
+      range_fix_a0: "0",
+      range_fix_a1: "0",
+    }));
     saveParamsBtn.addEventListener("click", saveParameters);
     refreshBtn.addEventListener("click", async () => {
       await refreshStatus();
