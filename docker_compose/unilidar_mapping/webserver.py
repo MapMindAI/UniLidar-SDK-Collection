@@ -220,14 +220,6 @@ INDEX_HTML = """<!doctype html>
       <h1>UniLidar Remote Control</h1>
       <p>Start or stop the compose stack and watch the live debug output from <code>UniLidarSdk</code>.</p>
 
-      <div class="toolbar">
-        <button class="start" id="startBtn">Start UniLidar</button>
-        <button class="stop" id="stopBtn">Stop UniLidar</button>
-        <button class="ghost" id="refreshBtn">Refresh Logs</button>
-      </div>
-
-      <div class="message" id="message"></div>
-
       <div class="status-box" style="margin-bottom: 20px;">
         <h2 class="panel-title">Calibration Parameters</h2>
         <p class="panel-note">These values are written back into the compose file. Restart the stack after saving to apply them.</p>
@@ -267,18 +259,32 @@ INDEX_HTML = """<!doctype html>
         </div>
       </div>
 
+      <div class="toolbar">
+        <button class="start" id="startBtn">Start UniLidar</button>
+        <button class="stop" id="stopBtn">Stop UniLidar</button>
+        <button class="ghost" id="refreshBtn">Refresh Logs</button>
+      </div>
+
+      <div class="message" id="message"></div>
+
       <pre class="logs" id="logs">Loading logs...</pre>
 
       <div class="status-box" style="margin-top: 20px;">
         <span class="label">Copy Controls</span>
         <div class="toolbar" style="margin: 12px 0 0;">
           <button class="copy" id="copyBtn">Copy to Drive</button>
+          <button class="ghost" id="topicsBtn">List Topics</button>
         </div>
       </div>
 
       <div class="status-box" style="margin-top: 20px;">
         <span class="label">Copy Result Log</span>
         <pre class="logs" id="copyLogs" style="min-height: 180px; max-height: 260px; margin-top: 0;">No copy has run yet.</pre>
+      </div>
+
+      <div class="status-box" style="margin-top: 20px;">
+        <span class="label">ROS 2 Topic List</span>
+        <pre class="logs" id="topicLogs" style="min-height: 180px; max-height: 260px; margin-top: 0;">No topic list has run yet.</pre>
       </div>
     </div>
   </div>
@@ -287,6 +293,7 @@ INDEX_HTML = """<!doctype html>
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const copyBtn = document.getElementById("copyBtn");
+    const topicsBtn = document.getElementById("topicsBtn");
     const refreshBtn = document.getElementById("refreshBtn");
     const defaultParamsBtn = document.getElementById("defaultParamsBtn");
     const zeroParamsBtn = document.getElementById("zeroParamsBtn");
@@ -295,6 +302,7 @@ INDEX_HTML = """<!doctype html>
     const containerName = document.getElementById("containerName");
     const composeFile = document.getElementById("composeFile");
     const copyLogs = document.getElementById("copyLogs");
+    const topicLogs = document.getElementById("topicLogs");
     const logs = document.getElementById("logs");
     const alphaBaisBias = document.getElementById("alphaBaisBias");
     const rangeFixA0 = document.getElementById("rangeFixA0");
@@ -326,6 +334,7 @@ INDEX_HTML = """<!doctype html>
       startBtn.disabled = busy;
       stopBtn.disabled = busy;
       copyBtn.disabled = busy;
+      topicsBtn.disabled = busy;
       refreshBtn.disabled = busy;
       saveParamsBtn.disabled = busy;
     }
@@ -360,6 +369,26 @@ INDEX_HTML = """<!doctype html>
     function setPresetAndSave(params) {
       setParameterInputs(params);
       return saveParameters(getParameterInputs());
+    }
+
+    async function listTopics() {
+      if (actionInFlight) return;
+      setActionState(true);
+      setMessage("Listing ROS 2 topics...");
+      try {
+        const data = await fetchJson("/api/topics", { method: "POST" });
+        const output = [data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "No topics found.";
+        topicLogs.textContent = output;
+        topicLogs.scrollTop = topicLogs.scrollHeight;
+        setMessage(data.stdout || "Topic list loaded.");
+      } catch (error) {
+        topicLogs.textContent = error.message;
+        setMessage(error.message, true);
+      } finally {
+        setActionState(false);
+        await refreshStatus();
+        await refreshLogs();
+      }
     }
 
     async function refreshParameters() {
@@ -431,6 +460,7 @@ INDEX_HTML = """<!doctype html>
     startBtn.addEventListener("click", () => runAction("/api/start"));
     stopBtn.addEventListener("click", () => runAction("/api/stop"));
     copyBtn.addEventListener("click", () => runAction("/api/copy", copyLogs));
+    topicsBtn.addEventListener("click", listTopics);
     defaultParamsBtn.addEventListener("click", () => setPresetAndSave(defaultCalibrationParams));
     zeroParamsBtn.addEventListener("click", () => setPresetAndSave({
       alpha_bais_bias: "0",
@@ -657,6 +687,22 @@ class UniLidarHandler(BaseHTTPRequestHandler):
             else:
                 self._write_json(
                     format_command_error(result, "Failed to copy data to drive."),
+                    HTTPStatus.BAD_GATEWAY,
+                )
+            return
+        if parsed.path == "/api/topics":
+            result = run_command(
+                [
+                    "bash",
+                    "-lc",
+                    "source /opt/ros/humble/setup.bash && ros2 topic list",
+                ]
+            )
+            if result["returncode"] == 0:
+                self._write_json(result)
+            else:
+                self._write_json(
+                    format_command_error(result, "Failed to list ROS 2 topics."),
                     HTTPStatus.BAD_GATEWAY,
                 )
             return
