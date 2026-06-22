@@ -402,7 +402,7 @@ INDEX_HTML = """<!doctype html>
 
     async function refreshLogs() {
       try {
-        const data = await fetchJson("/api/logs?tail=300");
+        const data = await fetchJson("/api/logs?tail=50");
         logs.textContent = data.logs || "No logs yet.";
         logs.scrollTop = logs.scrollHeight;
       } catch (error) {
