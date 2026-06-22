@@ -1,5 +1,7 @@
 # Unitree Lidar Collector
 
+![raw top](assets/mapping.png)
+
 ## How to use
 
 1. prepare the environment
@@ -12,17 +14,17 @@ bash unilidar_sdk2_bazel/docker_compose/boot_app/enable_unilidar_web_boot.sh
 
 2. then got to web `http://<device-ip>:8080/`
 
+## Unitree Lidar SDK
 
-# Unitree Lidar SDK
-
-This directory contains:
+This repo provides:
 
 - the vendor SDK headers and prebuilt libraries under `include/` and `lib/`
 - example programs under `examples/`
 - a ROS 2 bridge node in [unitree_lidar_rosnode.cc](/unitree_lidar_rosnode.cc)
 - a lightweight remote control webserver in `docker_compose/unilidar_mapping/webserver.py`
+- offline calibration tools under `unitree_lidar_sdk/calibration/`
 
-## `unitree_lidar_rosnode`
+## Highlight: Custom Packet-to-`PointCloud2` Conversion
 
 `unitree_lidar_rosnode` reads Unitree lidar data from the SDK and publishes:
 
@@ -37,7 +39,8 @@ The node supports two cloud-generation paths:
 2. `--use_sdk_pointcloud=false`
    Uses raw `LidarPointDataPacket` packets and builds `PointCloud2` manually inside `BuildCloudMessage(...)`.
 
-## Highlight: Custom Packet-to-`PointCloud2` Conversion
+<details>
+<summary>Custom Packet-to-<code>PointCloud2</code> Conversion</summary>
 
 The custom path is implemented in `BuildCloudMessage(const LidarPointDataPacket&, ...)`.
 
@@ -61,24 +64,30 @@ This path exists so the project can control:
 - ring accumulation behavior
 - per-point relative timing
 - timestamp policy when `--use_system_timestamp` is enabled
+</details>
+
+## Highlight: Calibration
+
+Offline calibration tools live under [`unitree_lidar_sdk/calibration/`](/unitree_lidar_sdk/calibration), and the full workflow is documented in [`unitree_lidar_sdk/README_calibrate.md`](/unitree_lidar_sdk/README_calibrate.md).
+
+- `unitree_lidar_packet_auto_calibrator`: extracts planes from merged point clouds, evaluates point-to-plane residuals, and searches calibration parameters automatically
+- `unitree_lidar_packet_manual_calibrator`: opens the same replay viewer with manual calibration parameters for visual inspection and tuning
+
+**Current Issue**: the automatic calibration still does not give an ideal result.
+I currently use manual adjustment in `unitree_lidar_packet_replayer`: load recorded packets,
+apply hand-tuned correction factors during decode, rebuild the merged cloud, and inspect the
+result in Pangolin until the geometry looks consistent.
+
+| view | before | after |
+|---|---|---|
+| top view | ![raw top](assets/raw_top.png) | ![calib top](assets/calib_top.png) |
+| side view | ![raw side](assets/raw_side.png) | ![calib side](assets/calib_side.png) |
 
 
-## Remote Web Control
+## Highlight: Remote Web Control
 
-This repo now includes a small Python webserver for remote control of the UniLidar Docker stack.
-
-Files:
-
-- `docker_compose/unilidar_mapping/webserver.py`
-- `docker_compose/unilidar_mapping/start_webserver.sh`
-- `docker_compose/unilidar_mapping/unilidar-web.service`
-- `docker_compose/boot_app/enable_unilidar_web_boot.sh`
-
-What it does:
-
-- runs `docker_compose/unilidar_mapping/arm64_start_unilidar.sh`
-- runs `docker_compose/unilidar_mapping/arm64_stop_unilidar.sh`
-- shows the latest Docker logs from container `UniLidarSdk`
+This repo includes a small Python webserver for remote control of the UniLidar Docker stack.
+It can start and stop the compose stack, copy recorded data to drive, and show the latest Docker logs from container `UniLidarSdk`.
 
 Run it on the remote device:
 
@@ -87,18 +96,14 @@ cd /home/cat/work/unilidar_sdk2_bazel
 python3 docker_compose/unilidar_mapping/webserver.py
 ```
 
-or:
+Or:
 
 ```bash
 cd /home/cat/work/unilidar_sdk2_bazel
 bash docker_compose/unilidar_mapping/start_webserver.sh
 ```
 
-Then open:
-
-```text
-http://<device-ip>:8080
-```
+Then open `http://<device-ip>:8080`.
 
 Optional environment variables:
 
@@ -107,13 +112,9 @@ Optional environment variables:
 - `UNILIDAR_COMPOSE_NAME` default `unilidar_collection`
 - `UNILIDAR_CONTAINER_NAME` default `UniLidarSdk`
 
-Notes:
+<details>
+<summary>Enable At Boot</summary>
 
-- the webserver uses only Python standard library modules
-- it expects `docker` and `docker compose` to be installed on the target device
-- it currently has no authentication, so expose it only on a trusted network or behind a reverse proxy/VPN
-
-### Enable At Boot
 
 This repo includes a `systemd` service file and an installer script for the target device.
 
@@ -133,3 +134,6 @@ Then it runs:
 - `systemctl daemon-reload`
 - `systemctl enable unilidar-web.service`
 - `systemctl restart unilidar-web.service`
+
+See logs with `sudo journalctl -u unilidar-web.service -b`.
+</details>

@@ -43,9 +43,14 @@ DEFINE_bool(threading, true, "Process point cloud publishing on a separate threa
 
 DEFINE_bool(reset_lidar_mode, false, "Reset Lidar mode to serial");
 DEFINE_bool(stop_rotate_after_quit, false, "stop rotate after quit");
-DEFINE_double(lidar_alpha_bias_offset, 0.00, "lidar alpha bias offset");
 
-namespace dm::third_party {
+
+DEFINE_double(alpha_bais_bias, 0.0, "bias for alpha bias");
+DEFINE_double(range_fix_a0, 0.0, "range fix a0");
+DEFINE_double(range_fix_a1, 0.0, "range fix a1");
+
+
+namespace third_party {
 namespace {
 
 constexpr size_t kPointStep = 32;
@@ -224,7 +229,7 @@ bool BuildCloudMessage(const unilidar_sdk2::LidarPointDataPacket& packet, bool u
     time_relative += delta;
   }
 
-  float alpha_cur = packet.data.angle_min + angle_bias - FLAGS_lidar_alpha_bias_offset * accumulated_rings;
+  float alpha_cur = packet.data.angle_min + angle_bias + FLAGS_alpha_bais_bias;
   float theta_cur = packet.data.com_horizontal_angle_start + theta_bias;
 
   // static float last_com_horizontal_angle_end = 0.0;
@@ -243,6 +248,8 @@ bool BuildCloudMessage(const unilidar_sdk2::LidarPointDataPacket& packet, bool u
       range_i = 0.0;
     }
     float range_float = range_scale * (static_cast<float>(ranges[i]) + range_bias);
+    range_float += FLAGS_range_fix_a0 * 50.0 * range_float * exp(-(1.0 + 20.0 * FLAGS_range_fix_a1) * range_float);
+
     if (range_float < packet_range_min || range_float > packet_range_max) {
       range_float = 0.0;
     }
@@ -483,13 +490,13 @@ class UnitreeLidarRosNode final : public rclcpp::Node {
 };
 
 }  // namespace
-}  // namespace dm::third_party
+}  // namespace third_party
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<dm::third_party::UnitreeLidarRosNode>();
+  auto node = std::make_shared<third_party::UnitreeLidarRosNode>();
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
