@@ -244,9 +244,9 @@ INDEX_HTML = """<!doctype html>
           </div>
         </div>
         <div class="toolbar" style="margin-bottom: 0;">
-          <button class="ghost" id="defaultParamsBtn">Load Defaults</button>
-          <button class="ghost" id="zeroParamsBtn">All Zeros</button>
-          <button class="copy" id="saveParamsBtn">Save Parameters</button>
+          <button class="ghost" id="defaultParamsBtn" type="button">Load Defaults</button>
+          <button class="ghost" id="zeroParamsBtn" type="button">All Zeros</button>
+          <button class="copy" id="saveParamsBtn" type="button">Save Parameters</button>
         </div>
       </details>
 
@@ -258,7 +258,7 @@ INDEX_HTML = """<!doctype html>
           <input id="bagNameSuffix" type="text" spellcheck="false" placeholder="_postfix">
         </div>
         <div class="toolbar" style="margin-bottom: 0;">
-          <button class="copy" id="saveBagSuffixBtn">Save Bag Postfix</button>
+          <button class="copy" id="saveBagSuffixBtn" type="button">Save Bag Postfix</button>
         </div>
       </details>
 
@@ -489,6 +489,10 @@ INDEX_HTML = """<!doctype html>
 
     async function saveParameters(overrides = null) {
       if (actionInFlight) return;
+      if (overrides && typeof overrides.preventDefault === "function") {
+        overrides.preventDefault();
+        overrides = null;
+      }
       setActionState(true);
       setMessage("Saving parameters...");
       try {
@@ -555,7 +559,7 @@ INDEX_HTML = """<!doctype html>
       range_fix_a0: "0",
       range_fix_a1: "0",
     }));
-    saveParamsBtn.addEventListener("click", saveParameters);
+    saveParamsBtn.addEventListener("click", () => saveParameters());
     saveBagSuffixBtn.addEventListener("click", saveBagSuffix);
     refreshBtn.addEventListener("click", async () => {
       await refreshStatus();
