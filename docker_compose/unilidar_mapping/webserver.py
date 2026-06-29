@@ -309,30 +309,19 @@ INDEX_HTML = """<!doctype html>
       <pre class="logs" id="logs">Loading logs...</pre>
 
       <div class="status-box" style="margin-top: 20px;">
-        <span class="label">Copy Controls</span>
-        <div class="toolbar" style="margin: 12px 0 0;">
+        <span class="label">Tools</span>
+        <div class="toolbar" style="margin: 12px 0 16px;">
           <button class="copy" id="copyBtn">Copy to Drive</button>
           <button class="ghost" id="topicsBtn">List Topics</button>
-        </div>
-      </div>
-
-      <div class="status-box" style="margin-top: 20px;">
-        <span class="label">Copy Result Log</span>
-        <pre class="logs" id="copyLogs" style="min-height: 180px; max-height: 260px; margin-top: 0;">No copy has run yet.</pre>
-      </div>
-
-      <div class="status-box" style="margin-top: 20px;">
-        <span class="label">ROS 2 Topic List</span>
-        <pre class="logs" id="topicLogs" style="min-height: 180px; max-height: 260px; margin-top: 0;">No topic list has run yet.</pre>
-      </div>
-
-      <div class="status-box" style="margin-top: 20px;">
-        <span class="label">CPU Frequency</span>
-        <div class="toolbar" style="margin: 12px 0 0;">
           <button class="ghost" id="checkCpuFreqBtn">Check CPU Freq</button>
           <button class="ghost" id="setCpuFreqMaxBtn">Set CPU Max</button>
         </div>
-        <pre class="logs" id="cpuFreqLogs" style="min-height: 100px; max-height: 200px; margin-top: 12px;">Press a button to read or set CPU frequency.</pre>
+        <span class="label">Copy Result</span>
+        <pre class="logs" id="copyLogs" style="min-height: 100px; max-height: 200px; margin-bottom: 16px;">No copy has run yet.</pre>
+        <span class="label">ROS 2 Topic List</span>
+        <pre class="logs" id="topicLogs" style="min-height: 100px; max-height: 200px; margin-bottom: 16px;">No topic list has run yet.</pre>
+        <span class="label">CPU Frequency</span>
+        <pre class="logs" id="cpuFreqLogs" style="min-height: 80px; max-height: 160px;">Press a button to read or set CPU frequency.</pre>
       </div>
     </div>
   </div>
