@@ -120,7 +120,9 @@ Optional environment variables:
 <summary>Enable At Boot</summary>
 
 
-This repo includes a `systemd` service file and an installer script for the target device.
+This repo includes a `systemd` installer script for the target device. The
+installer writes `/etc/systemd/system/unilidar-web.service` using the repo path
+where you run the script, so rerun it after moving or recloning the repo.
 
 Install and enable the webserver on boot:
 
@@ -129,9 +131,9 @@ cd /home/cat/work/unilidar_sdk2_bazel
 sudo bash docker_compose/boot_app/enable_unilidar_web_boot.sh
 ```
 
-This installs:
+This writes:
 
-- `docker_compose/unilidar_mapping/unilidar-web.service` to `/etc/systemd/system/unilidar-web.service`
+- `/etc/systemd/system/unilidar-web.service`
 
 Then it runs:
 

@@ -1,5 +1,7 @@
 [Unit]
 Description=UniLidar Remote Web Server
+# Example unit only. Prefer enable_unilidar_web_boot.sh, which generates this
+# file under /etc/systemd/system with the current repo path and invoking user.
 After=network-online.target docker.service
 Wants=network-online.target docker.service
 

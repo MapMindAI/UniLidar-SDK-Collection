@@ -11,7 +11,7 @@ services:
       ROS_DOMAIN_ID: "0"
     volumes:
       - /dev:/dev
-      - ~/work/unilidar_sdk2_bazel:/unilidar_sdk2_bazel
+      - ../../:/unilidar_sdk2_bazel
     working_dir: /unilidar_sdk2_bazel
     command:
       - bash
@@ -39,7 +39,7 @@ services:
       ROS_DOMAIN_ID: "0"
     volumes:
       - /dev:/dev
-      - ~/work/unilidar_sdk2_bazel:/unilidar_sdk2_bazel
+      - ../../:/unilidar_sdk2_bazel
     working_dir: /unilidar_sdk2_bazel
     command:
       - bash
@@ -83,7 +83,7 @@ services:
       NTRIP_TLS: ${NTRIP_TLS:-false}
     volumes:
       - /dev:/dev
-      - ~/work/unilidar_sdk2_bazel:/unilidar_sdk2_bazel
+      - ../../:/unilidar_sdk2_bazel
     working_dir: /unilidar_sdk2_bazel
     command:
       - bash
