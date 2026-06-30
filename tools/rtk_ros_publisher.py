@@ -124,6 +124,10 @@ def gps_ntrip_node():
     node    = Node('rtk_ros_publisher')
     fix_pub = node.create_publisher(NavSatFix, FIX_TOPIC, 20)
     node.get_logger().info(f"Opening {PORT} at {BAUDRATE} baud")
+    node.get_logger().info(f"NTRIP_SERVER:NTRIP_PORT : {NTRIP_SERVER}:{NTRIP_PORT}")
+    node.get_logger().info(f"NTRIP_MOUNTPOINT : {NTRIP_MOUNTPOINT}")
+    node.get_logger().info(f"NTRIP_USERNAME : {NTRIP_USERNAME}")
+    node.get_logger().info(f"NTRIP_PASSWORD : {NTRIP_PASSWORD}")
 
     # ── Phase 1: open serial and wait for first GGA ───────────────────────────
     sp = serial.Serial(PORT, BAUDRATE, timeout=1)
