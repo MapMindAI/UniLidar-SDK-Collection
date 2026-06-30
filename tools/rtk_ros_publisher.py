@@ -305,7 +305,7 @@ class RtkNode(Node):
         self._ntrip = client
 
     def handle_line(self, line: str) -> None:
-        # self.get_logger().info(line)
+        self.get_logger().info(line)
         parsed = parse_sentence(line)
         if parsed is None:
             self.get_logger().debug(f"skipping invalid/unknown: {line}")
