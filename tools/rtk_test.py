@@ -21,6 +21,10 @@ print(NtripPwd)
 print(NtripPoint)
 # ------------------------------------------------------------------
 RTK = serial.Serial(COM, BPS, timeout=0.01)
+
+AskGGA = "GPGGA 0.1\r\n"
+RTK.write(AskGGA.encode('utf-8'))
+
 print("等待RTK模块定位...")
 while True:
     data = RTK.readline()

@@ -44,7 +44,7 @@ gga_rx_flag    = False
 gga_rx_data    = ""
 node           = None
 fix_pub        = None
-
+sp_timeout     = 0.1
 
 def send_gpgga_to_gps():
     global sp, gga_rx_flag
@@ -155,7 +155,7 @@ def gps_ntrip_node():
     # ── Phase 1: open serial and wait for first GGA ───────────────────────────
     log(f"[phase1] opening serial port {PORT} @ {BAUDRATE}")
     try:
-        sp = serial.Serial(PORT, BAUDRATE, timeout=1)
+        sp = serial.Serial(PORT, BAUDRATE, timeout=sp_timeout)
     except Exception as e:
         log(f"[phase1] ERROR: cannot open {PORT}: {e}")
         raise
