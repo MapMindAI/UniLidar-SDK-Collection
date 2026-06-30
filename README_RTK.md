@@ -236,6 +236,38 @@ ls /dev/ttyACM* /dev/ttyUSB*
 
 ---
 
+
+## RTK Trajectory Viewer
+
+An interactive map viewer is included at [`web/rtk_viewer.html`](web/rtk_viewer.html).
+
+**Features:**
+- Parses the raw `.txt` log format directly in the browser (no server required for manual load)
+- OpenStreetMap and Esri Satellite tile layers; upscales tiles beyond native zoom instead of showing "data not available"
+- Trajectory color-coded by fix type: **green** = Fixed · **orange** = Float · **red** = Single
+- Click / hover any point for timestamp, coordinates, altitude, accuracy, satellite count
+- Stats bar: total points, path distance, duration, fixed-RTK percentage
+
+**Export a ROS 2 bag to viewer format:**
+
+```bash
+source /opt/ros/humble/setup.bash
+python3 tools/bag_to_rtk_txt.py /path/to/bag/        # writes <bag>_rtk.txt
+python3 tools/bag_to_rtk_txt.py bag.db3 -o out.txt   # explicit output
+```
+
+**Run with a local HTTP server** (required for auto-loading the data file):
+
+```bash
+# from the repo root
+python3 -m http.server 8765
+# then open:
+# http://localhost:8765/web/rtk_viewer.html
+```
+
+Alternatively, open `rtk_viewer.html` directly and use the **"Load RTK .txt"** button to pick the file manually.
+
+
 ## Applications
 
 - Ground-truth trajectory for LiDAR-inertial odometry evaluation
