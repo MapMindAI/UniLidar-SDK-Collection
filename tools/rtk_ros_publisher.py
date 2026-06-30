@@ -137,7 +137,7 @@ def gps_ntrip_node():
         rclpy.spin_once(node, timeout_sec=0.0)
         if sp.in_waiting > 0:
             data = sp.read(sp.in_waiting)
-            print(data)
+            # print(data)
             if isinstance(data, str):
                 data = data.encode('utf-8')
             buffer.extend(data)
