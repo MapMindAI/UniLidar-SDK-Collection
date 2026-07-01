@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RTK Trajectory Viewer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #header {
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+
+    #header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e94560;
+      white-space: nowrap;
+    }
+
+    #file-label {
+      cursor: pointer;
+      background: #0f3460;
+      border: 1px solid #e94560;
+      color: #e0e0e0;
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    #file-label:hover { background: #1a4a80; }
+    #file-input { display: none; }
+
+    #stats {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: #aaa;
+      flex-wrap: wrap;
+    }
+    #stats span { white-space: nowrap; }
+    #stats .val { color: #4fc3f7; font-weight: 600; }
+
+    #map { flex: 1; }
+
+    #info-panel {
+      position: absolute;
+      bottom: 30px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(22, 33, 62, 0.92);
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 12px;
+      min-width: 220px;
+      display: none;
+    }
+    #info-panel h3 { color: #e94560; margin-bottom: 8px; font-size: 13px; }
+    #info-panel table { border-collapse: collapse; width: 100%; }
+    #info-panel td { padding: 2px 6px; }
+    #info-panel td:first-child { color: #aaa; }
+    #info-panel td:last-child { color: #4fc3f7; font-weight: 500; }
+
+    .status-fixed { color: #66bb6a !important; }
+    .status-float { color: #ffa726 !important; }
+    .status-single { color: #ef5350 !important; }
+
+    .legend {
+      position: absolute;
+      bottom: 30px;
+      left: 50px;
+      z-index: 1000;
+      background: rgba(22, 33, 62, 0.92);
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+    .legend-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <h1>RTK Trajectory Viewer</h1>
+  <label id="file-label" for="file-input">Load RTK .txt</label>
+  <input type="file" id="file-input" accept=".txt">
+  <div id="stats">
+    <span>Points: <span class="val" id="stat-points">—</span></span>
+    <span>Duration: <span class="val" id="stat-duration">—</span></span>
+    <span>Distance: <span class="val" id="stat-distance">—</span></span>
+    <span>Fixed: <span class="val" id="stat-fixed">—</span></span>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<div id="info-panel">
+  <h3>Point Info</h3>
+  <table>
+    <tr><td>Time</td><td id="ip-time">—</td></tr>
+    <tr><td>Latitude</td><td id="ip-lat">—</td></tr>
+    <tr><td>Longitude</td><td id="ip-lon">—</td></tr>
+    <tr><td>Altitude</td><td id="ip-alt">—</td></tr>
+    <tr><td>Status</td><td id="ip-status">—</td></tr>
+    <tr><td>Accuracy</td><td id="ip-acc">—</td></tr>
+    <tr><td>Satellites</td><td id="ip-sats">—</td></tr>
+  </table>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#66bb6a"></div>Fixed RTK</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffa726"></div>Float RTK</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef5350"></div>Single / Other</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e94560; width:14px; height:14px;"></div>Start</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4fc3f7; width:14px; height:14px;"></div>End</div>
+</div>
+
+<script>
+  // ── Map setup ──────────────────────────────────────────────────────────────
+  const map = L.map('map', { zoomControl: true });
+
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 22,
+    maxNativeZoom: 19
+  });
+
+  const satellite = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics',
+    maxZoom: 22,
+    maxNativeZoom: 19
+  });
+
+  const satelliteLabel = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '',
+    maxZoom: 22,
+    maxNativeZoom: 19,
+    opacity: 0.7
+  });
+
+  const satelliteGroup = L.layerGroup([satellite, satelliteLabel]);
+
+  osm.addTo(map);
+  map.setView([22.781, 113.514], 17);
+
+  L.control.layers(
+    { 'OpenStreetMap': osm, 'Satellite (Esri)': satelliteGroup },
+    {},
+    { position: 'topright' }
+  ).addTo(map);
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let trajectoryLayer = null;
+  let markersLayer = null;
+
+  // ── Parser ─────────────────────────────────────────────────────────────────
+  function parseRTK(text) {
+    const rawLines = text.split(/\r?\n/);
+    const lines = rawLines.filter(l => l.trim() !== '');
+
+    // Skip header row (starts with Chinese characters)
+    let startIdx = 0;
+    if (lines[0] && !/^\d{4}/.test(lines[0])) startIdx = 1;
+
+    const points = [];
+    // Each record = 3 lines:
+    //   [0] "YYYY-M-D HH:MM:SS.mmm \t device \t sys_date"
+    //   [1] "sys_time \t gps_date"
+    //   [2] "gps_time \t sats \t fix \t hdg_st \t sol_st \t lon \t lat \t acc \t alt \t speed \t ..."
+    for (let i = startIdx; i + 2 < lines.length; i += 3) {
+      const l0 = lines[i];
+      const l2 = lines[i + 2];
+
+      // Record must start with a date
+      if (!/^\d{4}-\d{1,2}-\d{1,2}/.test(l0)) {
+        // Try to recover by scanning ahead
+        i -= 2;
+        continue;
+      }
+
+      const timestamp = l0.split('\t')[0].trim();
+      const fields = l2.split('\t');
+
+      // fields: [0]=gps_time [1]=sats [2]=fix [3]=hdg [4]=sol [5]=lon [6]=lat [7]=acc [8]=alt ...
+      if (fields.length < 9) continue;
+
+      const lon = parseFloat(fields[5]);
+      const lat = parseFloat(fields[6]);
+      const acc = parseFloat(fields[7]);
+      const alt = parseFloat(fields[8]);
+      const sats = parseInt(fields[1]);
+      const fixRaw = fields[2] || '';
+
+      if (isNaN(lon) || isNaN(lat)) continue;
+
+      // Classify fix status
+      let fixType = 'other';
+      if (fixRaw.includes('固定') || fixRaw.includes('4')) fixType = 'fixed';
+      else if (fixRaw.includes('浮动') || fixRaw.includes('5')) fixType = 'float';
+      else if (fixRaw.includes('单点') || fixRaw.includes('1') || fixRaw.includes('dgps') || fixRaw.includes('2')) fixType = 'single';
+
+      points.push({ timestamp, lon, lat, alt, acc, sats, fixRaw, fixType });
+    }
+    return points;
+  }
+
+  // ── Haversine distance (meters) ────────────────────────────────────────────
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.asin(Math.sqrt(a));
+  }
+
+  // ── Color by fix type ──────────────────────────────────────────────────────
+  const fixColor = { fixed: '#66bb6a', float: '#ffa726', single: '#ef5350', other: '#9e9e9e' };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function render(points) {
+    if (!points.length) { alert('No valid GPS points found.'); return; }
+
+    // Clear previous layers
+    if (trajectoryLayer) map.removeLayer(trajectoryLayer);
+    if (markersLayer) map.removeLayer(markersLayer);
+
+    trajectoryLayer = L.layerGroup().addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+
+    // Draw trajectory as colored segments
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i], p1 = points[i + 1];
+      L.polyline(
+        [[p0.lat, p0.lon], [p1.lat, p1.lon]],
+        { color: fixColor[p0.fixType], weight: 3, opacity: 0.9 }
+      ).addTo(trajectoryLayer);
+    }
+
+    // Circle markers for each point (click for info)
+    points.forEach((p, idx) => {
+      const circle = L.circleMarker([p.lat, p.lon], {
+        radius: 4,
+        color: fixColor[p.fixType],
+        fillColor: fixColor[p.fixType],
+        fillOpacity: 0.8,
+        weight: 1
+      }).addTo(markersLayer);
+
+      circle.on('click', () => showInfo(p));
+      circle.on('mouseover', () => showInfo(p));
+    });
+
+    // Start marker
+    const first = points[0];
+    L.circleMarker([first.lat, first.lon], {
+      radius: 9, color: '#e94560', fillColor: '#e94560', fillOpacity: 1, weight: 2
+    }).bindTooltip('Start', { permanent: false }).addTo(markersLayer);
+
+    // End marker
+    const last = points[points.length - 1];
+    L.circleMarker([last.lat, last.lon], {
+      radius: 9, color: '#4fc3f7', fillColor: '#4fc3f7', fillOpacity: 1, weight: 2
+    }).bindTooltip('End', { permanent: false }).addTo(markersLayer);
+
+    // Fit map
+    const lats = points.map(p => p.lat);
+    const lons = points.map(p => p.lon);
+    map.fitBounds([
+      [Math.min(...lats), Math.min(...lons)],
+      [Math.max(...lats), Math.max(...lons)]
+    ], { padding: [40, 40] });
+
+    // Stats
+    const fixedCount = points.filter(p => p.fixType === 'fixed').length;
+    const fixedPct = (fixedCount / points.length * 100).toFixed(1);
+
+    let totalDist = 0;
+    for (let i = 1; i < points.length; i++) {
+      totalDist += haversine(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
+    }
+
+    // Parse duration
+    const t0 = points[0].timestamp, t1 = points[points.length - 1].timestamp;
+    document.getElementById('stat-points').textContent = points.length;
+    document.getElementById('stat-distance').textContent = totalDist > 1000
+      ? (totalDist / 1000).toFixed(3) + ' km'
+      : totalDist.toFixed(1) + ' m';
+    document.getElementById('stat-fixed').textContent = fixedPct + '%';
+
+    try {
+      const parseTs = s => {
+        const m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2}) (\d{2}):(\d{2}):(\d{2})/);
+        return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]) : null;
+      };
+      const d0 = parseTs(t0), d1 = parseTs(t1);
+      if (d0 && d1) {
+        const sec = Math.round((d1 - d0) / 1000);
+        document.getElementById('stat-duration').textContent =
+          `${Math.floor(sec/60)}m ${sec%60}s`;
+      }
+    } catch(e) {}
+  }
+
+  function showInfo(p) {
+    document.getElementById('info-panel').style.display = 'block';
+    document.getElementById('ip-time').textContent = p.timestamp;
+    document.getElementById('ip-lat').textContent = p.lat.toFixed(8) + '°';
+    document.getElementById('ip-lon').textContent = p.lon.toFixed(8) + '°';
+    document.getElementById('ip-alt').textContent = isNaN(p.alt) ? '—' : p.alt.toFixed(2) + ' m';
+    const statusEl = document.getElementById('ip-status');
+    statusEl.textContent = p.fixRaw;
+    statusEl.className = p.fixType === 'fixed' ? 'status-fixed' : p.fixType === 'float' ? 'status-float' : 'status-single';
+    document.getElementById('ip-acc').textContent = isNaN(p.acc) ? '—' : p.acc.toFixed(2) + ' m';
+    document.getElementById('ip-sats').textContent = isNaN(p.sats) ? '—' : p.sats;
+  }
+
+  // ── File input ─────────────────────────────────────────────────────────────
+  document.getElementById('file-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => render(parseRTK(ev.target.result));
+    reader.readAsText(file, 'UTF-8');
+  });
+
+  // ── Auto-load via fetch (works when served over HTTP) ──────────────────────
+  fetch('../data/20260629161730.txt')
+    .then(r => {
+      if (!r.ok) throw new Error('fetch failed');
+      return r.text();
+    })
+    .then(text => render(parseRTK(text)))
+    .catch(() => {
+      // Running from file:// or data not found — user can load manually
+      console.info('Auto-load skipped (use file picker or serve over HTTP)');
+    });
+</script>
+</body>
+</html>

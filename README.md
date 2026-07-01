@@ -9,14 +9,26 @@
 ## How to use
 
 1. prepare the environment
-```
+```bash
 mkdir -p ~/work
 cd ~/work
 git clone https://github.com/MapMindAI/unilidar_sdk2_bazel.git
-bash unilidar_sdk2_bazel/docker_compose/boot_app/enable_unilidar_web_boot.sh
+sudo bash unilidar_sdk2_bazel/setup.sh
 ```
 
-2. then got to web `http://<device-ip>:8080/`
+2. then go to web `http://<device-ip>:8080/`
+
+## Setup
+
+`setup.sh` is a one-shot installer that must be run as root. It calls each tool script in order:
+
+| Step | Script | What it does |
+|------|--------|--------------|
+| 1 | `tools/setup_unilidar_sudo.sh` | Adds user to `dialout` group (serial port access without `sudo chmod`), installs `/etc/sudoers.d/unilidar` with passwordless rules for CPU freq writes |
+| 2 | `tools/set_cpu_freq_max.sh` | Sets all CPU policies to max performance governor, then prints current freq via `tools/check_current_cpu_freq.sh` to confirm |
+| 3 | `docker_compose/boot_app/enable_unilidar_web_boot.sh` | Writes the systemd unit, creates `/etc/unilidar/rtk.env` if absent, enables and starts `unilidar-web.service` |
+
+> Re-login or reboot after first run so the `dialout` group membership takes effect.
 
 ## Unitree Lidar SDK
 
@@ -91,23 +103,14 @@ result in Pangolin until the geometry looks consistent.
 ## Highlight: Remote Web Control
 
 This repo includes a small Python webserver for remote control of the UniLidar Docker stack.
-It can start and stop the compose stack, copy recorded data to drive, and show the latest Docker logs from container `UniLidarSdk`.
 
-Run it on the remote device:
-
-```bash
-cd /home/cat/work/unilidar_sdk2_bazel
-python3 docker_compose/unilidar_mapping/webserver.py
-```
-
-Or:
-
-```bash
-cd /home/cat/work/unilidar_sdk2_bazel
-bash docker_compose/unilidar_mapping/start_webserver.sh
-```
-
-Then open `http://<device-ip>:8080`.
+| Section | Controls |
+|---------|----------|
+| **Calibration Parameters** | Edit and save `alpha_bais_bias`, `range_fix_a0`, `range_fix_a1` into the compose file |
+| **Recorder Bag Name** | Set optional bag name postfix |
+| **Container Status** | Running / Stopped indicator, container and compose file info |
+| **Start / Stop / Logs** | Launch or stop the stack, switch live logs between `UniLidarSdk`, `Recorder`, `RtkPublisher` |
+| **Tools** | Copy to Drive · List Topics · Check CPU Freq · Set CPU Max — all output to one shared pane (click title to collapse) |
 
 Optional environment variables:
 
@@ -116,22 +119,26 @@ Optional environment variables:
 - `UNILIDAR_COMPOSE_NAME` default `unilidar_collection`
 - `UNILIDAR_CONTAINER_NAME` default `UniLidarSdk`
 
+When running from the boot service, RTK compose variables are loaded from
+`/etc/unilidar/rtk.env`, not from `~/.bashrc`.
+
 <details>
 <summary>Enable At Boot</summary>
 
-
-This repo includes a `systemd` service file and an installer script for the target device.
+This repo includes a `systemd` installer script for the target device. The
+installer writes `/etc/systemd/system/unilidar-web.service` using the repo path
+where you run the script, so rerun it after moving or recloning the repo.
 
 Install and enable the webserver on boot:
 
 ```bash
-cd /home/cat/work/unilidar_sdk2_bazel
 sudo bash docker_compose/boot_app/enable_unilidar_web_boot.sh
 ```
 
-This installs:
+This writes:
 
-- `docker_compose/unilidar_mapping/unilidar-web.service` to `/etc/systemd/system/unilidar-web.service`
+- `/etc/systemd/system/unilidar-web.service`
+- `/etc/unilidar/rtk.env` if it does not already exist
 
 Then it runs:
 
@@ -141,3 +148,7 @@ Then it runs:
 
 See logs with `sudo journalctl -u unilidar-web.service -b`.
 </details>
+
+## Highlight: RTK GNSS
+
+See [`README_RTK.md`](README_RTK.md) for full hardware specs and background on the WTRTK-960H module.

@@ -31,7 +31,19 @@ STOP_SCRIPT = Path(
 COPY_SCRIPT = Path(
     os.environ.get(
         "UNILIDAR_COPY_SCRIPT",
-        REPO_ROOT / "docker_compose" / "unilidar_mapping" / "copy_to_drive.sh",
+        REPO_ROOT / "tools" / "copy_to_drive.sh",
+    )
+)
+CHECK_CPU_FREQ_SCRIPT = Path(
+    os.environ.get(
+        "UNILIDAR_CHECK_CPU_FREQ_SCRIPT",
+        REPO_ROOT / "tools" / "check_current_cpu_freq.sh",
+    )
+)
+SET_CPU_FREQ_MAX_SCRIPT = Path(
+    os.environ.get(
+        "UNILIDAR_SET_CPU_FREQ_MAX_SCRIPT",
+        REPO_ROOT / "tools" / "set_cpu_freq_max.sh",
     )
 )
 COMPOSE_PARAM_NAMES = ("alpha_bais_bias", "range_fix_a0", "range_fix_a1")
@@ -224,7 +236,7 @@ INDEX_HTML = """<!doctype html>
   <div class="layout">
     <div class="card">
       <h1>UniLidar Remote Control</h1>
-      <p>Start or stop the compose stack and watch the live debug output from <code>UniLidarSdk</code>.</p>
+      <p>Start or stop the compose stack and watch the live debug output from the collection containers.</p>
 
       <details class="status-box" style="margin-bottom: 20px;">
         <summary class="panel-title" style="cursor: pointer; list-style: none;">Calibration Parameters</summary>
@@ -290,28 +302,22 @@ INDEX_HTML = """<!doctype html>
         <div class="toolbar" style="margin: 12px 0 0;">
           <button class="ghost toggle-active" id="uniLogBtn">UniLidarSdk</button>
           <button class="ghost" id="recorderLogBtn">Recorder</button>
+          <button class="ghost" id="rtkLogBtn">RtkPublisher</button>
         </div>
       </div>
 
       <pre class="logs" id="logs">Loading logs...</pre>
 
-      <div class="status-box" style="margin-top: 20px;">
-        <span class="label">Copy Controls</span>
-        <div class="toolbar" style="margin: 12px 0 0;">
+      <details class="status-box" style="margin-top: 20px;" open>
+        <summary class="label" style="cursor: pointer; list-style: none;">Tools</summary>
+        <div class="toolbar" style="margin: 12px 0 16px;">
           <button class="copy" id="copyBtn">Copy to Drive</button>
           <button class="ghost" id="topicsBtn">List Topics</button>
+          <button class="ghost" id="checkCpuFreqBtn">Check CPU Freq</button>
+          <button class="ghost" id="setCpuFreqMaxBtn">Set CPU Max</button>
         </div>
-      </div>
-
-      <div class="status-box" style="margin-top: 20px;">
-        <span class="label">Copy Result Log</span>
-        <pre class="logs" id="copyLogs" style="min-height: 180px; max-height: 260px; margin-top: 0;">No copy has run yet.</pre>
-      </div>
-
-      <div class="status-box" style="margin-top: 20px;">
-        <span class="label">ROS 2 Topic List</span>
-        <pre class="logs" id="topicLogs" style="min-height: 180px; max-height: 260px; margin-top: 0;">No topic list has run yet.</pre>
-      </div>
+        <pre class="logs" id="toolLogs" style="min-height: 120px; max-height: 260px;">No tool has run yet.</pre>
+      </details>
     </div>
   </div>
 
@@ -323,6 +329,7 @@ INDEX_HTML = """<!doctype html>
     const refreshBtn = document.getElementById("refreshBtn");
     const uniLogBtn = document.getElementById("uniLogBtn");
     const recorderLogBtn = document.getElementById("recorderLogBtn");
+    const rtkLogBtn = document.getElementById("rtkLogBtn");
     const defaultParamsBtn = document.getElementById("defaultParamsBtn");
     const zeroParamsBtn = document.getElementById("zeroParamsBtn");
     const saveParamsBtn = document.getElementById("saveParamsBtn");
@@ -331,8 +338,9 @@ INDEX_HTML = """<!doctype html>
     const runningStatus = document.getElementById("runningStatus");
     const containerName = document.getElementById("containerName");
     const composeFile = document.getElementById("composeFile");
-    const copyLogs = document.getElementById("copyLogs");
-    const topicLogs = document.getElementById("topicLogs");
+    const checkCpuFreqBtn = document.getElementById("checkCpuFreqBtn");
+    const setCpuFreqMaxBtn = document.getElementById("setCpuFreqMaxBtn");
+    const toolLogs = document.getElementById("toolLogs");
     const logs = document.getElementById("logs");
     const alphaBaisBias = document.getElementById("alphaBaisBias");
     const rangeFixA0 = document.getElementById("rangeFixA0");
@@ -369,15 +377,18 @@ INDEX_HTML = """<!doctype html>
       refreshBtn.disabled = busy;
       uniLogBtn.disabled = busy;
       recorderLogBtn.disabled = busy;
+      rtkLogBtn.disabled = busy;
       saveParamsBtn.disabled = busy;
       saveBagSuffixBtn.disabled = busy;
+      checkCpuFreqBtn.disabled = busy;
+      setCpuFreqMaxBtn.disabled = busy;
     }
 
     function setLogContainer(name) {
       logContainer = name;
-      const isUni = name === "UniLidarSdk";
-      uniLogBtn.className = "ghost " + (isUni ? "toggle-active" : "");
-      recorderLogBtn.className = "ghost " + (!isUni ? "toggle-active" : "");
+      uniLogBtn.className = "ghost " + (name === "UniLidarSdk" ? "toggle-active" : "");
+      recorderLogBtn.className = "ghost " + (name === "Recorder" ? "toggle-active" : "");
+      rtkLogBtn.className = "ghost " + (name === "RtkPublisher" ? "toggle-active" : "");
     }
 
     async function refreshStatus() {
@@ -423,11 +434,11 @@ INDEX_HTML = """<!doctype html>
       try {
         const data = await fetchJson("/api/topics", { method: "POST" });
         const output = [data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "No topics found.";
-        topicLogs.textContent = output;
-        topicLogs.scrollTop = topicLogs.scrollHeight;
+        toolLogs.textContent = output;
+        toolLogs.scrollTop = toolLogs.scrollHeight;
         setMessage(data.stdout || "Topic list loaded.");
       } catch (error) {
-        topicLogs.textContent = error.message;
+        toolLogs.textContent = error.message;
         setMessage(error.message, true);
       } finally {
         setActionState(false);
@@ -470,15 +481,17 @@ INDEX_HTML = """<!doctype html>
       setMessage("Running " + path.replace("/api/", "") + "...");
       try {
         const data = await fetchJson(path, { method: "POST" });
-        setMessage(data.stdout || "Command finished.");
         if (outputTarget) {
           outputTarget.textContent = [data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "No output.";
           outputTarget.scrollTop = outputTarget.scrollHeight;
+        } else {
+          setMessage(data.stdout || "Command finished.");
         }
       } catch (error) {
-        setMessage(error.message, true);
         if (outputTarget) {
           outputTarget.textContent = error.message;
+        } else {
+          setMessage(error.message, true);
         }
       } finally {
         setActionState(false);
@@ -543,14 +556,20 @@ INDEX_HTML = """<!doctype html>
 
     startBtn.addEventListener("click", () => runAction("/api/start"));
     stopBtn.addEventListener("click", () => runAction("/api/stop"));
-    copyBtn.addEventListener("click", () => runAction("/api/copy", copyLogs));
+    copyBtn.addEventListener("click", () => runAction("/api/copy", toolLogs));
     topicsBtn.addEventListener("click", listTopics);
+    checkCpuFreqBtn.addEventListener("click", () => runAction("/api/cpu_freq", toolLogs));
+    setCpuFreqMaxBtn.addEventListener("click", () => runAction("/api/cpu_freq_max", toolLogs));
     uniLogBtn.addEventListener("click", async () => {
       setLogContainer("UniLidarSdk");
       await refreshLogs();
     });
     recorderLogBtn.addEventListener("click", async () => {
       setLogContainer("Recorder");
+      await refreshLogs();
+    });
+    rtkLogBtn.addEventListener("click", async () => {
+      setLogContainer("RtkPublisher");
       await refreshLogs();
     });
     defaultParamsBtn.addEventListener("click", () => setPresetAndSave(defaultCalibrationParams));
@@ -831,6 +850,26 @@ class UniLidarHandler(BaseHTTPRequestHandler):
                     HTTPStatus.BAD_GATEWAY,
                 )
             return
+        if parsed.path == "/api/cpu_freq":
+            result = run_command([str(CHECK_CPU_FREQ_SCRIPT)])
+            if result["returncode"] == 0:
+                self._write_json(result)
+            else:
+                self._write_json(
+                    format_command_error(result, "Failed to read CPU frequency."),
+                    HTTPStatus.BAD_GATEWAY,
+                )
+            return
+        if parsed.path == "/api/cpu_freq_max":
+            result = run_command([str(SET_CPU_FREQ_MAX_SCRIPT)])
+            if result["returncode"] == 0:
+                self._write_json(result)
+            else:
+                self._write_json(
+                    format_command_error(result, "Failed to set CPU frequency to max."),
+                    HTTPStatus.BAD_GATEWAY,
+                )
+            return
         if parsed.path == "/api/topics":
             result = run_command(
                 [
@@ -894,6 +933,10 @@ def main():
         raise FileNotFoundError(f"stop script not found: {STOP_SCRIPT}")
     if not COPY_SCRIPT.is_file():
         raise FileNotFoundError(f"copy script not found: {COPY_SCRIPT}")
+    if not CHECK_CPU_FREQ_SCRIPT.is_file():
+        raise FileNotFoundError(f"check cpu freq script not found: {CHECK_CPU_FREQ_SCRIPT}")
+    if not SET_CPU_FREQ_MAX_SCRIPT.is_file():
+        raise FileNotFoundError(f"set cpu freq max script not found: {SET_CPU_FREQ_MAX_SCRIPT}")
 
     server = ThreadingHTTPServer((DEFAULT_HOST, DEFAULT_PORT), UniLidarHandler)
     print(

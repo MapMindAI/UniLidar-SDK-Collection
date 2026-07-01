@@ -9,6 +9,14 @@ fi
 
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-unilidar}"
 COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/docker_compose/unilidar_mapping/${COMPOSE_NAME}.compose.yml}"
+RTK_ENV_FILE="${RTK_ENV_FILE:-/etc/unilidar/rtk.env}"
+
+if [[ -r "${RTK_ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${RTK_ENV_FILE}"
+  set +a
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker not found" >&2
@@ -23,6 +31,10 @@ fi
 if [[ ! -f "${COMPOSE_FILE_PATH}" ]]; then
   echo "compose file not found: ${COMPOSE_FILE_PATH}" >&2
   exit 1
+fi
+
+if [[ -e "${RTK_SERIAL_PORT:-/dev/ttyUSB0}" ]]; then
+  sudo chmod 777 "${RTK_SERIAL_PORT:-/dev/ttyUSB0}"
 fi
 
 docker compose \
