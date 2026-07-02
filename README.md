@@ -1,6 +1,6 @@
 # Unitree Lidar Collector
 
-![raw top](assets/mapping.png)
+![raw top](assets/mapping.jpg)
 
 * RK3566 for data collection.
 * UniLidar L2 for pointcloud.
