@@ -109,11 +109,11 @@ This repo includes a small Python webserver for remote control of the UniLidar D
 
 | Section | Controls |
 |---------|----------|
-| **Calibration Parameters** | Edit and save `alpha_bais_bias`, `range_fix_a0`, `range_fix_a1` into the compose file |
-| **Recorder Bag Name** | Set optional bag name postfix |
-| **Container Status** | Running / Stopped indicator, container and compose file info |
-| **Start / Stop / Logs** | Launch or stop the stack, switch live logs between `UniLidarSdk`, `Recorder`, `RtkPublisher`, `CameraPublisher` |
-| **Tools** | Copy to Drive · List Topics · Check CPU Freq · Set CPU Max — all output to one shared pane (click title to collapse) |
+| **Header** | Running / Stopped status pill, container and compose file info |
+| **Start / Stop** | Launch or stop the compose stack |
+| **Logs** | Live log tabs: `UniLidarSdk`, `Recorder`, `RtkPublisher`, `CameraPublisher` |
+| **Tools** | Copy to Drive · List Topics · Check CPU Freq · Set CPU Max — all output to one shared pane |
+| **Settings** (collapsed) | Calibration parameters (`alpha_bais_bias`, `range_fix_a0`, `range_fix_a1`) saved into the compose file, and the optional recorder bag name postfix |
 
 Optional environment variables:
 
