@@ -303,6 +303,7 @@ INDEX_HTML = """<!doctype html>
           <button class="ghost toggle-active" id="uniLogBtn">UniLidarSdk</button>
           <button class="ghost" id="recorderLogBtn">Recorder</button>
           <button class="ghost" id="rtkLogBtn">RtkPublisher</button>
+          <button class="ghost" id="cameraLogBtn">CameraPublisher</button>
         </div>
       </div>
 
@@ -330,6 +331,7 @@ INDEX_HTML = """<!doctype html>
     const uniLogBtn = document.getElementById("uniLogBtn");
     const recorderLogBtn = document.getElementById("recorderLogBtn");
     const rtkLogBtn = document.getElementById("rtkLogBtn");
+    const cameraLogBtn = document.getElementById("cameraLogBtn");
     const defaultParamsBtn = document.getElementById("defaultParamsBtn");
     const zeroParamsBtn = document.getElementById("zeroParamsBtn");
     const saveParamsBtn = document.getElementById("saveParamsBtn");
@@ -378,6 +380,7 @@ INDEX_HTML = """<!doctype html>
       uniLogBtn.disabled = busy;
       recorderLogBtn.disabled = busy;
       rtkLogBtn.disabled = busy;
+      cameraLogBtn.disabled = busy;
       saveParamsBtn.disabled = busy;
       saveBagSuffixBtn.disabled = busy;
       checkCpuFreqBtn.disabled = busy;
@@ -389,6 +392,7 @@ INDEX_HTML = """<!doctype html>
       uniLogBtn.className = "ghost " + (name === "UniLidarSdk" ? "toggle-active" : "");
       recorderLogBtn.className = "ghost " + (name === "Recorder" ? "toggle-active" : "");
       rtkLogBtn.className = "ghost " + (name === "RtkPublisher" ? "toggle-active" : "");
+      cameraLogBtn.className = "ghost " + (name === "CameraPublisher" ? "toggle-active" : "");
     }
 
     async function refreshStatus() {
@@ -570,6 +574,10 @@ INDEX_HTML = """<!doctype html>
     });
     rtkLogBtn.addEventListener("click", async () => {
       setLogContainer("RtkPublisher");
+      await refreshLogs();
+    });
+    cameraLogBtn.addEventListener("click", async () => {
+      setLogContainer("CameraPublisher");
       await refreshLogs();
     });
     defaultParamsBtn.addEventListener("click", () => setPresetAndSave(defaultCalibrationParams));

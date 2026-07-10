@@ -105,14 +105,14 @@ result in Pangolin until the geometry looks consistent.
 
 ## Highlight: Remote Web Control
 
-This repo includes a small Python webserver for remote control of the UniLidar Docker stack.
+This repo includes a small Python webserver for remote control of the UniLidar Docker stack. See [`doc/README_docker_server.md`](doc/README_docker_server.md) for the full compose stack, webserver API, and log/boot-service reference.
 
 | Section | Controls |
 |---------|----------|
 | **Calibration Parameters** | Edit and save `alpha_bais_bias`, `range_fix_a0`, `range_fix_a1` into the compose file |
 | **Recorder Bag Name** | Set optional bag name postfix |
 | **Container Status** | Running / Stopped indicator, container and compose file info |
-| **Start / Stop / Logs** | Launch or stop the stack, switch live logs between `UniLidarSdk`, `Recorder`, `RtkPublisher` |
+| **Start / Stop / Logs** | Launch or stop the stack, switch live logs between `UniLidarSdk`, `Recorder`, `RtkPublisher`, `CameraPublisher` |
 | **Tools** | Copy to Drive · List Topics · Check CPU Freq · Set CPU Max — all output to one shared pane (click title to collapse) |
 
 Optional environment variables:
