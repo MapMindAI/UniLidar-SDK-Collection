@@ -34,11 +34,17 @@ AUTO_EXPOSURE_INTERVAL = float(os.environ.get("CAMERA_AUTO_EXPOSURE_INTERVAL", "
 AUTO_EXPOSURE_ROI_RADIUS_RATIO = float(
     os.environ.get("CAMERA_AUTO_EXPOSURE_ROI_RADIUS_RATIO", "0.45")
 )
+AUTO_EXPOSURE_SAMPLE_STRIDE = max(
+    1, int(os.environ.get("CAMERA_AUTO_EXPOSURE_SAMPLE_STRIDE", "8"))
+)
 AUTO_EXPOSURE_SMOOTHING = float(
     os.environ.get("CAMERA_AUTO_EXPOSURE_SMOOTHING", "0.2")
 )
 AUTO_EXPOSURE_MAX_SCALE_PER_STEP = float(
     os.environ.get("CAMERA_AUTO_EXPOSURE_MAX_SCALE_PER_STEP", "1.25")
+)
+AUTO_EXPOSURE_LOG_INTERVAL = float(
+    os.environ.get("CAMERA_AUTO_EXPOSURE_LOG_INTERVAL", "5.0")
 )
 
 
@@ -73,6 +79,7 @@ class AutoExposureController:
         self.cap = cap
         self.node = node
         self.last_adjust_time = 0.0
+        self.last_log_time = 0.0
         self.min_exposure: Optional[float] = (
             float(AUTO_EXPOSURE_MIN) if AUTO_EXPOSURE_MIN is not None else None
         )
@@ -80,6 +87,9 @@ class AutoExposureController:
             float(AUTO_EXPOSURE_MAX) if AUTO_EXPOSURE_MAX is not None else None
         )
         self.smoothed_brightness: Optional[float] = None
+        self.metering_shape = None
+        self.metering_bounds = None
+        self.metering_mask = None
         initial_exposure = cap.get(cv2.CAP_PROP_EXPOSURE)
         if initial_exposure == 0.0:
             initial_exposure = 100.0
@@ -95,7 +105,8 @@ class AutoExposureController:
             f"smoothing={AUTO_EXPOSURE_SMOOTHING}, "
             f"max_scale_per_step={AUTO_EXPOSURE_MAX_SCALE_PER_STEP}, "
             f"interval={AUTO_EXPOSURE_INTERVAL}s, "
-            f"roi_radius_ratio={AUTO_EXPOSURE_ROI_RADIUS_RATIO}"
+            f"roi_radius_ratio={AUTO_EXPOSURE_ROI_RADIUS_RATIO}, "
+            f"sample_stride={AUTO_EXPOSURE_SAMPLE_STRIDE}"
         )
 
     def clamp_exposure(self, exposure: float) -> float:
@@ -105,21 +116,59 @@ class AutoExposureController:
             exposure = min(self.max_exposure, exposure)
         return exposure
 
-    def compute_mean_brightness(self, frame) -> float:
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        height, width = gray.shape
+    def update_metering_region(self, frame_shape) -> None:
+        height, width = frame_shape[:2]
         radius = int(min(height, width) * 0.5 * AUTO_EXPOSURE_ROI_RADIUS_RATIO)
         if radius <= 0:
-            return float(cv2.mean(gray)[0])
+            self.metering_bounds = (0, height, 0, width)
+            self.metering_mask = None
+            self.metering_shape = frame_shape
+            return
 
-        circle_mask = cv2.circle(
-            np.zeros((height, width), dtype=np.uint8),
-            (width // 2, height // 2),
-            radius,
-            255,
-            thickness=-1,
+        center_x = width // 2
+        center_y = height // 2
+        x0 = max(0, center_x - radius)
+        x1 = min(width, center_x + radius)
+        y0 = max(0, center_y - radius)
+        y1 = min(height, center_y + radius)
+
+        ys = np.arange(y0, y1, AUTO_EXPOSURE_SAMPLE_STRIDE)
+        xs = np.arange(x0, x1, AUTO_EXPOSURE_SAMPLE_STRIDE)
+        mask = (
+            (ys[:, None] - center_y) ** 2 + (xs[None, :] - center_x) ** 2
+            <= radius**2
+        ).astype(np.uint8)
+
+        self.metering_bounds = (y0, y1, x0, x1)
+        self.metering_mask = mask * 255
+        self.metering_shape = frame_shape
+
+    def compute_mean_brightness(self, frame) -> float:
+        if self.metering_shape != frame.shape:
+            self.update_metering_region(frame.shape)
+
+        y0, y1, x0, x1 = self.metering_bounds
+        sample = frame[
+            y0:y1:AUTO_EXPOSURE_SAMPLE_STRIDE,
+            x0:x1:AUTO_EXPOSURE_SAMPLE_STRIDE,
+        ]
+        gray = cv2.cvtColor(sample, cv2.COLOR_BGR2GRAY)
+        if self.metering_mask is None:
+            return float(cv2.mean(gray)[0])
+        return float(cv2.mean(gray, mask=self.metering_mask)[0])
+
+    def log_adjustment(self, now: float, mean_brightness: float) -> None:
+        if (
+            AUTO_EXPOSURE_LOG_INTERVAL <= 0.0
+            or now - self.last_log_time < AUTO_EXPOSURE_LOG_INTERVAL
+        ):
+            return
+        self.last_log_time = now
+        self.node.get_logger().info(
+            f"Auto exposure adjusted to {self.current_exposure:.1f} "
+            f"(mean brightness {mean_brightness:.1f}, "
+            f"smoothed {self.smoothed_brightness:.1f})"
         )
-        return float(cv2.mean(gray, mask=circle_mask)[0])
 
     def update(self, frame) -> None:
         now = time.monotonic()
@@ -159,11 +208,7 @@ class AutoExposureController:
 
         self.current_exposure = next_exposure
         self.last_adjust_time = now
-        self.node.get_logger().info(
-            f"Auto exposure adjusted to {self.current_exposure:.1f} "
-            f"(mean brightness {mean_brightness:.1f}, "
-            f"smoothed {self.smoothed_brightness:.1f})"
-        )
+        self.log_adjustment(now, mean_brightness)
 
 
 def camera_publisher_node():

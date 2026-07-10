@@ -38,8 +38,10 @@ opens a V4L2 camera with OpenCV and publishes JPEG-compressed frames.
 | `CAMERA_AUTO_EXPOSURE_MAX` | unset | Upper clamp for the software-selected exposure value |
 | `CAMERA_AUTO_EXPOSURE_INTERVAL` | `0.5` | Seconds between exposure adjustments |
 | `CAMERA_AUTO_EXPOSURE_ROI_RADIUS_RATIO` | `0.45` | Radius of the center-circle metering region, as a fraction of half the smaller image dimension |
+| `CAMERA_AUTO_EXPOSURE_SAMPLE_STRIDE` | `4` | Pixel stride used inside the metering region; larger values reduce CPU cost |
 | `CAMERA_AUTO_EXPOSURE_SMOOTHING` | `0.2` | Exponential moving average factor for brightness; lower values react more slowly but oscillate less |
 | `CAMERA_AUTO_EXPOSURE_MAX_SCALE_PER_STEP` | `1.25` | Maximum multiplicative exposure change applied in one adjustment step |
+| `CAMERA_AUTO_EXPOSURE_LOG_INTERVAL` | `5.0` | Seconds between auto-exposure adjustment logs; `0` disables them |
 | `CAMERA_FRAME_ID` | `camera` | `header.frame_id` on published messages |
 | `CAMERA_IMAGE_TOPIC` | `/camera/image_raw/compressed` | Output topic |
 | `CAMERA_JPEG_QUALITY` | `80` | JPEG encode quality (0–100) |
@@ -55,6 +57,8 @@ If the image is overexposed, lower `CAMERA_AUTO_EXPOSURE_TARGET_BRIGHTNESS`, low
 `CAMERA_AUTO_EXPOSURE_MAX`, or set `CAMERA_EXPOSURE` for a fixed manual value.
 The software auto exposure meters only a center circle by default so black fisheye
 border pixels do not bias the image darker than it really is.
+The metering mask is cached and downsampled by `CAMERA_AUTO_EXPOSURE_SAMPLE_STRIDE`
+to keep CPU cost low on edge devices.
 If exposure oscillates, lower `CAMERA_AUTO_EXPOSURE_SMOOTHING` or lower
 `CAMERA_AUTO_EXPOSURE_MAX_SCALE_PER_STEP`.
 
