@@ -105,7 +105,7 @@ result in Pangolin until the geometry looks consistent.
 
 ## Highlight: Remote Web Control
 
-This repo includes a small Python webserver for remote control of the UniLidar Docker stack.
+This repo includes a small Python webserver for remote control of the UniLidar Docker stack. See [`doc/README_docker_server.md`](doc/README_docker_server.md) for the full compose stack, webserver API, and log/boot-service reference.
 
 | Section | Controls |
 |---------|----------|
