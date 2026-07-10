@@ -156,7 +156,7 @@ source /opt/ros/humble/setup.bash
 Run:
 
 ```bash
-/usr/bin/python3 tools/rtk_ros_publisher.py \
+/usr/bin/python3 tools/rtk/rtk_ros_publisher.py \
   --port=/dev/ttyACM0 \
   --baudrate=115200 \
   --frame-id=rtk
@@ -167,7 +167,7 @@ Run with an NTRIP/RTK correction server:
 ```bash
 export RTK_NTRIP_PASSWORD='your-password'
 
-/usr/bin/python3 tools/rtk_ros_publisher.py \
+/usr/bin/python3 tools/rtk/rtk_ros_publisher.py \
   --port=/dev/ttyACM0 \
   --baudrate=115200 \
   --frame-id=rtk \
@@ -255,8 +255,8 @@ An interactive map viewer is included at [`web/rtk_viewer.html`](web/rtk_viewer.
 
 ```bash
 source /opt/ros/humble/setup.bash
-python3 tools/bag_to_rtk_txt.py /path/to/bag/        # writes <bag>_rtk.txt
-python3 tools/bag_to_rtk_txt.py bag.db3 -o out.txt   # explicit output
+python3 tools/rtk/bag_to_rtk_txt.py /path/to/bag/        # writes <bag>_rtk.txt
+python3 tools/rtk/bag_to_rtk_txt.py bag.db3 -o out.txt   # explicit output
 ```
 
 **Run with a local HTTP server** (required for auto-loading the data file):
