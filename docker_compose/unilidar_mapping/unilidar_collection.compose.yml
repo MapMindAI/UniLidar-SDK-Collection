@@ -111,7 +111,7 @@ services:
     pid: host
     environment:
       ROS_DOMAIN_ID: "0"
-      CAMERA_DEVICE: ${CAMERA_DEVICE:-/dev/video4}
+      CAMERA_DEVICE: ${CAMERA_DEVICE:-/dev/video20}
       CAMERA_WIDTH: ${CAMERA_WIDTH:-1280}
       CAMERA_HEIGHT: ${CAMERA_HEIGHT:-960}
       CAMERA_FPS: ${CAMERA_FPS:-30}
