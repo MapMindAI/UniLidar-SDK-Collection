@@ -31,6 +31,15 @@ opens a V4L2 camera with OpenCV and publishes JPEG-compressed frames.
 | `CAMERA_WIDTH` | `1280` | Capture width |
 | `CAMERA_HEIGHT` | `960` | Capture height |
 | `CAMERA_FPS` | `30` | Capture/publish rate |
+| `CAMERA_EXPOSURE` | unset | Manual exposure value passed to V4L2/OpenCV; when unset, the publisher runs its own brightness-based auto exposure loop |
+| `CAMERA_AUTO_EXPOSURE_TARGET_BRIGHTNESS` | `100.0` | Target mean grayscale brightness (0–255) for the software auto exposure loop |
+| `CAMERA_AUTO_EXPOSURE_TOLERANCE` | `8.0` | No exposure change is made while mean brightness stays within this error band |
+| `CAMERA_AUTO_EXPOSURE_MIN` | unset | Lower clamp for the software-selected exposure value |
+| `CAMERA_AUTO_EXPOSURE_MAX` | unset | Upper clamp for the software-selected exposure value |
+| `CAMERA_AUTO_EXPOSURE_INTERVAL` | `0.5` | Seconds between exposure adjustments |
+| `CAMERA_AUTO_EXPOSURE_ROI_RADIUS_RATIO` | `0.45` | Radius of the center-circle metering region, as a fraction of half the smaller image dimension |
+| `CAMERA_AUTO_EXPOSURE_SMOOTHING` | `0.2` | Exponential moving average factor for brightness; lower values react more slowly but oscillate less |
+| `CAMERA_AUTO_EXPOSURE_MAX_SCALE_PER_STEP` | `1.25` | Maximum multiplicative exposure change applied in one adjustment step |
 | `CAMERA_FRAME_ID` | `camera` | `header.frame_id` on published messages |
 | `CAMERA_IMAGE_TOPIC` | `/camera/image_raw/compressed` | Output topic |
 | `CAMERA_JPEG_QUALITY` | `80` | JPEG encode quality (0–100) |
@@ -38,8 +47,16 @@ opens a V4L2 camera with OpenCV and publishes JPEG-compressed frames.
 ```bash
 source /opt/ros/humble/setup.bash
 CAMERA_DEVICE=/dev/video4 CAMERA_WIDTH=1280 CAMERA_HEIGHT=960 \
+CAMERA_AUTO_EXPOSURE_TARGET_BRIGHTNESS=90 \
   python3 tools/camera/camera_ros_publisher.py
 ```
+
+If the image is overexposed, lower `CAMERA_AUTO_EXPOSURE_TARGET_BRIGHTNESS`, lower
+`CAMERA_AUTO_EXPOSURE_MAX`, or set `CAMERA_EXPOSURE` for a fixed manual value.
+The software auto exposure meters only a center circle by default so black fisheye
+border pixels do not bias the image darker than it really is.
+If exposure oscillates, lower `CAMERA_AUTO_EXPOSURE_SMOOTHING` or lower
+`CAMERA_AUTO_EXPOSURE_MAX_SCALE_PER_STEP`.
 
 | Topic | Type | Format |
 |---|---|---|
