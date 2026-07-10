@@ -100,3 +100,37 @@ services:
         done
         source /opt/ros/humble/setup.bash
         exec /usr/bin/python3 /unilidar_sdk2_bazel/tools/rtk/rtk_ros_publisher.py
+
+  camera_publisher:
+    image: yeliudm/arm64-ros2humble-opencv4.8.1:latest
+    platform: linux/arm64
+    container_name: CameraPublisher
+    privileged: true
+    network_mode: host
+    ipc: host
+    pid: host
+    environment:
+      ROS_DOMAIN_ID: "0"
+      CAMERA_DEVICE: ${CAMERA_DEVICE:-/dev/video4}
+      CAMERA_WIDTH: ${CAMERA_WIDTH:-1280}
+      CAMERA_HEIGHT: ${CAMERA_HEIGHT:-960}
+      CAMERA_FPS: ${CAMERA_FPS:-30}
+      CAMERA_FRAME_ID: ${CAMERA_FRAME_ID:-camera}
+      CAMERA_IMAGE_TOPIC: ${CAMERA_IMAGE_TOPIC:-/camera/image_raw/compressed}
+      CAMERA_JPEG_QUALITY: ${CAMERA_JPEG_QUALITY:-80}
+    volumes:
+      - /dev:/dev
+      - ../../:/unilidar_sdk2_bazel
+    working_dir: /unilidar_sdk2_bazel
+    command:
+      - bash
+      - -lc
+      - |
+        echo '====> Starting CameraPublisher'
+        MIN_VALID_UNIX_TIME=1735689600
+        while [ "$(date +%s)" -lt "$${MIN_VALID_UNIX_TIME}" ]; do
+          echo "Waiting for valid system time before starting CameraPublisher: $(date -Is)"
+          sleep 1
+        done
+        source /opt/ros/humble/setup.bash
+        exec /usr/bin/python3 /unilidar_sdk2_bazel/tools/camera/camera_ros_publisher.py

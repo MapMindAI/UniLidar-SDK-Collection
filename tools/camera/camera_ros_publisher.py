@@ -37,9 +37,13 @@ def camera_publisher_node():
     pub = node.create_publisher(CompressedImage, IMAGE_TOPIC, 10)
 
     node.get_logger().info(
-        f"Opening {DEVICE} at {WIDTH}x{HEIGHT}@{FPS}fps, publishing to {IMAGE_TOPIC}"
+        f"Opening {DEVICE}, requesting {WIDTH}x{HEIGHT}@{FPS}fps, publishing to {IMAGE_TOPIC}"
     )
     cap = open_camera(DEVICE, WIDTH, HEIGHT, FPS)
+    actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    actual_fps = cap.get(cv2.CAP_PROP_FPS)
+    node.get_logger().info(f"Opened {DEVICE} at {actual_width}x{actual_height}@{actual_fps:.1f}fps")
 
     encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY]
     period = 1.0 / FPS if FPS > 0 else 0.0
