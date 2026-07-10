@@ -1,157 +1,81 @@
-# Unitree Lidar Collector
+# UniLidar SDK Collection
 
-![raw top](assets/mapping.jpg)
+![UniLidar SDK Collection banner](assets/readme_banner.jpg)
 
-* RK3566 for data collection.
-* UniLidar L2 for pointcloud.
-* 3D print box : https://www.tinkercad.com/things/cM7BuANyys1-unilidar-box
-* UniScanner : https://mapmindai.github.io/uniscanner/
+UniLidar SDK Collection packages a Unitree L2 lidar workflow for RK3566-based
+field collection: lidar capture, RTK GNSS, USB camera publishing, and a small
+remote web control panel.
 
-![rtk_fused_mapping](assets/rtk_fused_mapping.gif)
+![Repository structure](assets/repo_structure.svg)
 
-## How to use
+## What is in this repo
 
-1. prepare the environment
+- `unitree_lidar_sdk/`: vendor SDK, examples, ROS 2 bridge, and offline packet tools
+- `tools/rtk/`: RTK GNSS publisher and helpers
+- `tools/camera/`: USB camera publisher, viewer, and calibration tools
+- `docker_compose/`: compose stack, checked-in arm64 lidar binary, and boot service
+- `web/`: static RTK viewer page
+
+## Simple setup
+
 ```bash
 mkdir -p ~/work
 cd ~/work
 git clone https://github.com/MapMindAI/unilidar_sdk2_bazel.git
-sudo bash unilidar_sdk2_bazel/setup.sh
+cd unilidar_sdk2_bazel
+sudo bash setup.sh
 ```
 
-2. then go to web `http://<device-ip>:8080/`
+After setup, open `http://<device-ip>:8080/`.
 
-## Setup
+`setup.sh` does three things:
 
-`setup.sh` is a one-shot installer that must be run as root. It calls each tool script in order:
+1. installs serial and sudo rules for the collection device
+2. sets the CPU governor to max performance
+3. installs and starts the boot-time web control service
 
-| Step | Script | What it does |
-|------|--------|--------------|
-| 1 | `tools/setup_unilidar_sudo.sh` | Adds user to `dialout` group (serial port access without `sudo chmod`), installs `/etc/sudoers.d/unilidar` with passwordless rules for CPU freq writes |
-| 2 | `tools/set_cpu_freq_max.sh` | Sets all CPU policies to max performance governor, then prints current freq via `tools/check_current_cpu_freq.sh` to confirm |
-| 3 | `docker_compose/boot_app/enable_unilidar_web_boot.sh` | Writes the systemd unit, creates `/etc/unilidar/rtk.env` if absent, enables and starts `unilidar-web.service` |
+Re-login or reboot after the first run so the `dialout` group change takes effect.
 
-> Re-login or reboot after first run so the `dialout` group membership takes effect.
+## Main docs
+
+- [Unitree Lidar SDK and calibration](doc/UnilidarSDK/README.md)
+- [Remote web control](doc/RemoteWebControl/README.md)
+- [RTK GNSS](doc/README_RTK.md)
+- [Camera tools and calibration](doc/README_CAMERA.md)
 
 ## Unitree Lidar SDK
 
-This repo provides:
+The lidar stack includes vendor headers and static libraries, example programs,
+the `unitree_lidar_rosnode` ROS 2 bridge, and raw-packet tools for recording,
+replay, and calibration.
 
-- the vendor SDK headers and prebuilt libraries under `include/` and `lib/`
-- example programs under `examples/`
-- a ROS 2 bridge node in [unitree_lidar_rosnode.cc](/unitree_lidar_rosnode.cc)
-- a lightweight remote control webserver in `docker_compose/unilidar_mapping/webserver.py`
-- offline calibration tools under `unitree_lidar_sdk/calibration/`
+Calibration is still a practical workflow rather than a one-click one. The
+automatic plane-based optimizer exists, but manual replay tuning is still the
+reliable path when you need the cleanest result. The full workflow and build
+commands are in [doc/UnilidarSDK/README.md](doc/UnilidarSDK/README.md).
 
-## Highlight: Custom Packet-to-`PointCloud2` Conversion
-
-`unitree_lidar_rosnode` reads Unitree lidar data from the SDK and publishes:
-
-- `/unilidar/imu` as `sensor_msgs::msg::Imu`
-- `/unilidar/cloud` as `sensor_msgs::msg::PointCloud2`
-
-The node supports two cloud-generation paths:
-
-1. `--use_sdk_pointcloud=true`
-   Uses `UnitreeLidarReader::getPointCloud(PointCloudUnitree&)` and converts the SDK cloud directly into ROS `PointCloud2`.
-
-2. `--use_sdk_pointcloud=false`
-   Uses raw `LidarPointDataPacket` packets and builds `PointCloud2` manually inside `BuildCloudMessage(...)`.
-
-<details>
-<summary>Custom Packet-to-<code>PointCloud2</code> Conversion</summary>
-
-The custom path is implemented in `BuildCloudMessage(const LidarPointDataPacket&, ...)`.
-
-What it does:
-
-- allocates a fixed `PointCloud2` layout with:
-  - `x` at offset `0`
-  - `y` at offset `4`
-  - `z` at offset `8`
-  - `intensity` at offset `16`
-  - `ring` at offset `20`
-  - `time` at offset `24`
-- reads raw ranges and intensities from each Unitree packet
-- applies the Unitree calibration parameters
-- converts each sample to 3D XYZ
-- accumulates multiple single-ring packets into one ROS cloud when `--cloud_accumulate_rings > 1`
-
-This path exists so the project can control:
-
-- exact field layout expected by downstream code
-- ring accumulation behavior
-- per-point relative timing
-- timestamp policy when `--use_system_timestamp` is enabled
-</details>
-
-## Highlight: Calibration
-
-Offline calibration tools live under [`unitree_lidar_sdk/calibration/`](/unitree_lidar_sdk/calibration), and the full workflow is documented in [`unitree_lidar_sdk/README_calibrate.md`](/unitree_lidar_sdk/README_calibrate.md).
-
-- `unitree_lidar_packet_auto_calibrator`: extracts planes from merged point clouds, evaluates point-to-plane residuals, and searches calibration parameters automatically
-- `unitree_lidar_packet_manual_calibrator`: opens the same replay viewer with manual calibration parameters for visual inspection and tuning
-
-**Current Issue**: the automatic calibration still does not give an ideal result.
-I currently use manual adjustment in `unitree_lidar_packet_replayer`: load recorded packets,
-apply hand-tuned correction factors during decode, rebuild the merged cloud, and inspect the
-result in Pangolin until the geometry looks consistent.
-
-| view | before | after |
+| View | Before | After |
 |---|---|---|
-| top view | ![raw top](assets/raw_top.jpg) | ![calib top](assets/calib_top.jpg) |
-| side view | ![raw side](assets/raw_side.jpg) | ![calib side](assets/calib_side.jpg) |
+| Top | ![Raw top](assets/raw_top.jpg) | ![Calibrated top](assets/calib_top.jpg) |
+| Side | ![Raw side](assets/raw_side.jpg) | ![Calibrated side](assets/calib_side.jpg) |
 
+## Remote web control
 
-## Highlight: Remote Web Control
+The repo ships with a small browser UI for starting and stopping the compose
+stack, checking logs, running utility scripts, and editing the lidar
+calibration values stored in the compose file.
 
-This repo includes a small Python webserver for remote control of the UniLidar Docker stack. See [`doc/README_docker_server.md`](doc/README_docker_server.md) for the full compose stack, webserver API, and log/boot-service reference.
+![Remote web control screenshot](assets/remote_web_control_screenshot.png)
 
-| Section | Controls |
-|---------|----------|
-| **Header** | Running / Stopped status pill, container and compose file info |
-| **Start / Stop** | Launch or stop the compose stack |
-| **Logs** | Live log tabs: `UniLidarSdk`, `Recorder`, `RtkPublisher`, `CameraPublisher` |
-| **Tools** | Copy to Drive · List Topics · Check CPU Freq · Set CPU Max — all output to one shared pane |
-| **Settings** (collapsed) | Calibration parameters (`alpha_bais_bias`, `range_fix_a0`, `range_fix_a1`) saved into the compose file, and the optional recorder bag name postfix |
+See [doc/RemoteWebControl/README.md](doc/RemoteWebControl/README.md) for the
+compose layout, web API, and boot-service path.
 
-Optional environment variables:
+## Field workflow
 
-- `UNILIDAR_WEB_HOST` default `0.0.0.0`
-- `UNILIDAR_WEB_PORT` default `8080`
-- `UNILIDAR_COMPOSE_NAME` default `unilidar_collection`
-- `UNILIDAR_CONTAINER_NAME` default `UniLidarSdk`
+- power the RK3566 device and connect lidar, RTK, and camera
+- open the web control page from another machine
+- start the compose stack
+- confirm lidar, RTK, and camera topics from the logs or tools pane
+- record and export data from the mounted drive
 
-When running from the boot service, RTK compose variables are loaded from
-`/etc/unilidar/rtk.env`, not from `~/.bashrc`.
-
-<details>
-<summary>Enable At Boot</summary>
-
-This repo includes a `systemd` installer script for the target device. The
-installer writes `/etc/systemd/system/unilidar-web.service` using the repo path
-where you run the script, so rerun it after moving or recloning the repo.
-
-Install and enable the webserver on boot:
-
-```bash
-sudo bash docker_compose/boot_app/enable_unilidar_web_boot.sh
-```
-
-This writes:
-
-- `/etc/systemd/system/unilidar-web.service`
-- `/etc/unilidar/rtk.env` if it does not already exist
-
-Then it runs:
-
-- `systemctl daemon-reload`
-- `systemctl enable unilidar-web.service`
-- `systemctl restart unilidar-web.service`
-
-See logs with `sudo journalctl -u unilidar-web.service -b`.
-</details>
-
-## Highlight: RTK GNSS
-
-See [`README_RTK.md`](README_RTK.md) for full hardware specs and background on the WTRTK-960H module.
+![RTK fused mapping](assets/rtk_fused_mapping.gif)

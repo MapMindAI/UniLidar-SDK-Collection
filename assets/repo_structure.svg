@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7f5ef"/>
+      <stop offset="100%" stop-color="#ebe5d8"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f6f1e6"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 34px "DejaVu Sans", sans-serif; fill: #1f2a37; }
+      .subtitle { font: 400 16px "DejaVu Sans", sans-serif; fill: #52606d; }
+      .section { font: 700 20px "DejaVu Sans", sans-serif; fill: #1f2a37; }
+      .body { font: 400 15px "DejaVu Sans", sans-serif; fill: #334155; }
+      .mono { font: 700 14px "DejaVu Sans Mono", monospace; fill: #0f172a; }
+      .cap { font: 400 13px "DejaVu Sans", sans-serif; fill: #64748b; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" rx="28" fill="url(#bg)"/>
+  <rect x="36" y="32" width="1128" height="696" rx="24" fill="#ffffff" opacity="0.65"/>
+
+  <text x="68" y="94" class="title">UniLidar SDK Collection</text>
+  <text x="68" y="124" class="subtitle">High-level repository structure for setup, lidar, RTK, camera, and deployment paths.</text>
+
+  <rect x="68" y="162" width="1064" height="530" rx="22" fill="url(#panel)" stroke="#d9cfba"/>
+
+  <rect x="98" y="196" width="250" height="452" rx="18" fill="#fffdf8" stroke="#d5c7ab"/>
+  <text x="122" y="232" class="section">Core paths</text>
+  <text x="122" y="270" class="mono">setup.sh</text>
+  <text x="122" y="292" class="cap">One-shot device installer</text>
+  <text x="122" y="334" class="mono">README.md</text>
+  <text x="122" y="356" class="cap">Setup-first landing page</text>
+  <text x="122" y="398" class="mono">AGENTS.md</text>
+  <text x="122" y="420" class="cap">Contributor rules for this repo</text>
+  <text x="122" y="462" class="mono">WORKSPACE / BUILD</text>
+  <text x="122" y="484" class="cap">Bazel project wiring</text>
+  <text x="122" y="526" class="mono">assets/</text>
+  <text x="122" y="548" class="cap">README images and diagrams</text>
+
+  <rect x="382" y="196" width="330" height="200" rx="18" fill="#f8fbff" stroke="#b8cce5"/>
+  <text x="406" y="232" class="section">Lidar stack</text>
+  <text x="406" y="270" class="mono">unitree_lidar_sdk/</text>
+  <text x="406" y="292" class="body">Vendor SDK, examples, ROS 2 bridge, packet tools</text>
+  <text x="406" y="330" class="mono">doc/UnilidarSDK/</text>
+  <text x="406" y="352" class="body">SDK overview, build notes, calibration workflow</text>
+  <text x="406" y="390" class="mono">docker_compose/unitree_lidar_sdk/</text>
+  <text x="406" y="412" class="body">Checked-in arm64 lidar node binary for deploys</text>
+
+  <rect x="382" y="430" width="330" height="218" rx="18" fill="#f7fcf6" stroke="#bfd7b5"/>
+  <text x="406" y="466" class="section">Sensors and tools</text>
+  <text x="406" y="504" class="mono">tools/rtk/</text>
+  <text x="406" y="526" class="body">RTK GNSS publisher and bag helpers</text>
+  <text x="406" y="564" class="mono">tools/camera/</text>
+  <text x="406" y="586" class="body">USB camera publisher, viewer, calibration scripts</text>
+  <text x="406" y="624" class="mono">doc/README_RTK.md / README_CAMERA.md</text>
+  <text x="406" y="646" class="body">Subsystem docs for deployment and calibration</text>
+
+  <rect x="746" y="196" width="356" height="452" rx="18" fill="#fffaf4" stroke="#e0c5aa"/>
+  <text x="770" y="232" class="section">Deployment and control</text>
+  <text x="770" y="270" class="mono">docker_compose/unilidar_mapping/</text>
+  <text x="770" y="292" class="body">Compose stack, start-stop scripts, webserver.py</text>
+  <text x="770" y="330" class="mono">doc/RemoteWebControl/</text>
+  <text x="770" y="352" class="body">Web UI, API, env vars, boot service</text>
+  <text x="770" y="390" class="mono">docker_compose/boot_app/</text>
+  <text x="770" y="412" class="body">Systemd installer for boot-time web control</text>
+  <text x="770" y="450" class="mono">web/</text>
+  <text x="770" y="472" class="body">Static RTK viewer page served by the device</text>
+  <text x="770" y="510" class="mono">third_party/</text>
+  <text x="770" y="532" class="body">Bazel wrappers for ROS, Pangolin, glog, Eigen</text>
+
+  <path d="M348 422 C 362 422, 368 422, 382 422" fill="none" stroke="#c8b38a" stroke-width="3"/>
+  <path d="M348 540 C 362 540, 368 540, 382 540" fill="none" stroke="#c8b38a" stroke-width="3"/>
+  <path d="M712 296 C 726 296, 732 296, 746 296" fill="none" stroke="#c8b38a" stroke-width="3"/>
+  <path d="M712 546 C 726 546, 732 546, 746 546" fill="none" stroke="#c8b38a" stroke-width="3"/>
+
+  <circle cx="365" cy="422" r="6" fill="#c8b38a"/>
+  <circle cx="365" cy="540" r="6" fill="#c8b38a"/>
+  <circle cx="729" cy="296" r="6" fill="#c8b38a"/>
+  <circle cx="729" cy="546" r="6" fill="#c8b38a"/>
+</svg>
