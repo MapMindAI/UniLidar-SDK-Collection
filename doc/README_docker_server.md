@@ -90,13 +90,15 @@ Open `http://<device-ip>:8080/`.
 
 | Section | Controls |
 |---|---|
-| **Calibration Parameters** | Edit and save `alpha_bais_bias`, `range_fix_a0`, `range_fix_a1` into the compose file (restart the stack to apply) |
-| **Recorder Bag Name** | Set optional bag name postfix |
-| **Container Status** | Running/Stopped indicator, container and compose file info |
-| **Start / Stop / Logs** | Launch or stop the stack; log tabs: `UniLidarSdk`, `Recorder`, `RtkPublisher`, `CameraPublisher` |
+| **Header** | Running/Stopped status pill, container and compose file info |
+| **Start / Stop** | Launch or stop the compose stack |
+| **Logs** | Live log tabs: `UniLidarSdk`, `Recorder`, `RtkPublisher`, `CameraPublisher` |
 | **Tools** | Copy to Drive · List Topics · Check CPU Freq · Set CPU Max — shared output pane |
+| **Settings** (collapsed) | Calibration parameters (`alpha_bais_bias`, `range_fix_a0`, `range_fix_a1`) saved into the compose file (restart the stack to apply), and the optional recorder bag name postfix |
 
-Status and logs auto-refresh (every 3s / 2s respectively) while the page is open.
+Status and logs auto-refresh (every 3s / 2s respectively) while the page is
+open. The log pane only auto-scrolls when it is already at the bottom, so
+scrolling up to read older lines isn't interrupted by the refresh.
 
 ### JSON API
 

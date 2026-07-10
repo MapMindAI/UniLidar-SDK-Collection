@@ -56,192 +56,249 @@ PARAM_LINE_RE = re.compile(
 )
 
 
-INDEX_HTML = """<!doctype html>
+INDEX_HTML = """
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UniLidar Remote Control</title>
+  <title>UniLidar Control</title>
   <style>
     :root {
       --bg: #0d1117;
       --panel: #161b22;
-      --panel-2: #1f2937;
+      --well: #0b0f14;
       --text: #e6edf3;
-      --muted: #9da7b3;
-      --accent: #3fb950;
-      --danger: #f85149;
+      --muted: #8b949e;
       --border: #30363d;
+      --green: #3fb950;
+      --green-dark: #238636;
+      --red: #f85149;
+      --blue: #58a6ff;
     }
-
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 24px;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background: linear-gradient(180deg, #0b1220 0%, var(--bg) 100%);
+      padding: 16px;
+      background: var(--bg);
       color: var(--text);
+      font-family: system-ui, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.45;
     }
     .layout {
-      max-width: 1080px;
+      max-width: 920px;
       margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
     .card {
-      background: rgba(22, 27, 34, 0.92);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-      backdrop-filter: blur(8px);
-    }
-    h1 {
-      margin: 0 0 8px;
-      font-size: 32px;
-    }
-    p {
-      color: var(--muted);
-      margin-top: 0;
-    }
-    .toolbar {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin: 20px 0;
-    }
-    button {
-      border: 0;
-      border-radius: 999px;
-      padding: 12px 18px;
-      font-size: 15px;
-      font-weight: 600;
-      color: white;
-      cursor: pointer;
-      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
-    }
-    button:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.05);
-    }
-    button:active {
-      transform: translateY(1px) scale(0.98);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-    }
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-      filter: none;
-    }
-    .start { background: var(--accent); color: #051b11; }
-    .stop { background: var(--danger); }
-    .copy { background: #58a6ff; color: #03111f; }
-    .ghost {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border);
-      box-shadow: none;
-    }
-    .toggle-active {
-      background: #238636;
-      color: white;
-      border: 1px solid #2ea043;
-    }
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .status-box {
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px;
-    }
-    .status-box .label {
-      display: block;
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 8px;
-    }
-    .status-box .value {
-      font-size: 16px;
-      font-weight: 600;
-      word-break: break-word;
-    }
-    .ok { color: #7ee787; }
-    .bad { color: #ff7b72; }
-    .logs {
-      min-height: 420px;
-      max-height: 68vh;
-      overflow: auto;
-      white-space: pre-wrap;
-      background: #0b0f14;
+      background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 16px;
-      margin: 0;
-      font-family: "SFMono-Regular", Consolas, monospace;
-      font-size: 13px;
-      line-height: 1.45;
     }
-    .message {
-      margin: 0 0 16px;
-      min-height: 22px;
-      color: var(--muted);
-    }
-    .param-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      margin: 16px 0 8px;
-    }
-    .field {
+    h1 { margin: 0; font-size: 22px; }
+    h2 { margin: 0; font-size: 16px; }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    /* Header */
+    .headbar {
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .meta { color: var(--muted); font-size: 12px; word-break: break-all; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
       gap: 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-weight: 700;
+      font-size: 15px;
+      background: var(--well);
+      white-space: nowrap;
     }
-    .field label {
-      font-size: 13px;
-      color: var(--muted);
+    .pill .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
     }
-    .field input {
-      width: 100%;
+    .pill.running { color: #7ee787; border-color: #2ea04366; }
+    .pill.running .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .pill.stopped { color: #ff7b72; border-color: #f8514966; }
+    .pill.stopped .dot { background: var(--red); }
+
+    /* Buttons */
+    button {
       border: 1px solid var(--border);
       border-radius: 10px;
-      background: #0b0f14;
-      color: var(--text);
-      padding: 12px 14px;
+      padding: 10px 16px;
       font-size: 15px;
-      outline: none;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--well);
+      cursor: pointer;
     }
-    .field input:focus {
-      border-color: #58a6ff;
-      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.18);
+    button:hover { filter: brightness(1.2); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-start { background: var(--green-dark); border-color: #2ea043; color: #fff; }
+    .btn-stop { background: #b62324; border-color: var(--red); color: #fff; }
+    .btn-primary { background: #1f4d80; border-color: var(--blue); color: #fff; }
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
     }
-    .panel-title {
-      margin: 0 0 6px;
-      font-size: 18px;
+    .cardhead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
     }
-    .panel-note {
-      margin: 6px 0 0;
-      font-size: 13px;
+
+    /* Message */
+    .message {
+      margin-top: 10px;
+      min-height: 20px;
+      font-size: 14px;
       color: var(--muted);
     }
+    .message.error { color: var(--red); }
+
+    /* Log tabs */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 4px;
+      background: var(--well);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .tab {
+      flex: 1;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 14px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    .tab.active {
+      background: var(--panel);
+      border-color: var(--border);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    /* Log panes */
+    pre.logs {
+      margin: 0;
+      background: var(--well);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 300px;
+      max-height: 60vh;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 13px;
+    }
+    pre.logs.small { min-height: 80px; max-height: 240px; }
+
+    /* Settings */
+    details > summary {
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      list-style: none;
+    }
+    details > summary::before { content: "▸ "; color: var(--muted); }
+    details[open] > summary::before { content: "▾ "; }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 13px; color: var(--muted); }
+    .field input {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--well);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 15px;
+      outline: none;
+      width: 100%;
+    }
+    .field input:focus { border-color: var(--blue); }
+    .divider { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
   </style>
 </head>
 <body>
   <div class="layout">
-    <div class="card">
-      <h1>UniLidar Remote Control</h1>
-      <p>Start or stop the compose stack and watch the live debug output from the collection containers.</p>
 
-      <details class="status-box" style="margin-bottom: 20px;">
-        <summary class="panel-title" style="cursor: pointer; list-style: none;">Calibration Parameters</summary>
-        <p class="panel-note">These values are written back into the compose file. Restart the stack after saving to apply them.</p>
-        <div class="param-grid">
+    <header class="card headbar">
+      <div>
+        <h1>UniLidar Control</h1>
+        <div class="meta" id="composeFile"></div>
+      </div>
+      <div class="pill" id="statusPill"><span class="dot"></span><span id="runningStatus">Checking…</span></div>
+    </header>
+
+    <div class="card">
+      <div class="row">
+        <button class="btn-start" id="startBtn">&#9654; Start</button>
+        <button class="btn-stop" id="stopBtn">&#9632; Stop</button>
+      </div>
+      <div class="message" id="message"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <h2>Logs</h2>
+        <button id="refreshBtn">Refresh</button>
+      </div>
+      <div class="tabs" id="logTabs">
+        <button class="tab active" data-container="UniLidarSdk">UniLidarSdk</button>
+        <button class="tab" data-container="Recorder">Recorder</button>
+        <button class="tab" data-container="RtkPublisher">RtkPublisher</button>
+        <button class="tab" data-container="CameraPublisher">CameraPublisher</button>
+      </div>
+      <pre class="logs" id="logs">Loading logs...</pre>
+    </div>
+
+    <div class="card">
+      <div class="cardhead"><h2>Tools</h2></div>
+      <div class="row">
+        <button class="btn-primary" id="copyBtn">Copy to Drive</button>
+        <button id="topicsBtn">List Topics</button>
+        <button id="checkCpuFreqBtn">Check CPU Freq</button>
+        <button id="setCpuFreqMaxBtn">Set CPU Max</button>
+      </div>
+      <pre class="logs small" id="toolLogs" style="margin-top: 12px;">No tool has run yet.</pre>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Settings</summary>
+
+        <p class="muted" style="margin: 12px 0 0;">Calibration parameters are written into the compose file. Restart the stack after saving to apply them.</p>
+        <div class="field-grid">
           <div class="field">
             <label for="alphaBaisBias">alpha_bais_bias</label>
             <input id="alphaBaisBias" type="number" step="any" inputmode="decimal">
@@ -255,99 +312,53 @@ INDEX_HTML = """<!doctype html>
             <input id="rangeFixA1" type="number" step="any" inputmode="decimal">
           </div>
         </div>
-        <div class="toolbar" style="margin-bottom: 0;">
-          <button class="ghost" id="defaultParamsBtn" type="button">Load Defaults</button>
-          <button class="ghost" id="zeroParamsBtn" type="button">All Zeros</button>
-          <button class="copy" id="saveParamsBtn" type="button">Save Parameters</button>
+        <div class="row">
+          <button class="btn-primary" id="saveParamsBtn">Save Parameters</button>
+          <button id="defaultParamsBtn">Load Defaults</button>
+          <button id="zeroParamsBtn">All Zeros</button>
         </div>
-      </details>
 
-      <details class="status-box" style="margin-bottom: 20px;">
-        <summary class="panel-title" style="cursor: pointer; list-style: none;">Recorder Bag Name</summary>
-        <p class="panel-note">Add an optional postfix to recorder bag names, for example <code>_postfix</code>.</p>
-        <div class="field">
-          <label for="bagNameSuffix">bag postfix</label>
-          <input id="bagNameSuffix" type="text" spellcheck="false" placeholder="_postfix">
-        </div>
-        <div class="toolbar" style="margin-bottom: 0;">
-          <button class="copy" id="saveBagSuffixBtn" type="button">Save Bag Postfix</button>
-        </div>
-      </details>
+        <hr class="divider">
 
-      <div class="status-grid">
-        <div class="status-box">
-          <span class="label">Container Status</span>
-          <div class="value" id="runningStatus">Unknown</div>
+        <p class="muted" style="margin: 0;">Optional postfix appended to recorder bag names, for example <code>_postfix</code>.</p>
+        <div class="field-grid">
+          <div class="field">
+            <label for="bagNameSuffix">bag postfix</label>
+            <input id="bagNameSuffix" type="text" spellcheck="false" placeholder="_postfix">
+          </div>
         </div>
-        <div class="status-box">
-          <span class="label">Container Name</span>
-          <div class="value" id="containerName"></div>
+        <div class="row">
+          <button class="btn-primary" id="saveBagSuffixBtn">Save Bag Postfix</button>
         </div>
-        <div class="status-box">
-          <span class="label">Compose File</span>
-          <div class="value" id="composeFile"></div>
-        </div>
-      </div>
-
-      <div class="toolbar">
-        <button class="start" id="startBtn">Start UniLidar</button>
-        <button class="stop" id="stopBtn">Stop UniLidar</button>
-        <button class="ghost" id="refreshBtn">Refresh Logs</button>
-      </div>
-
-      <div class="message" id="message"></div>
-
-      <div class="status-box" style="margin-bottom: 20px;">
-        <span class="label">Log Source</span>
-        <div class="toolbar" style="margin: 12px 0 0;">
-          <button class="ghost toggle-active" id="uniLogBtn">UniLidarSdk</button>
-          <button class="ghost" id="recorderLogBtn">Recorder</button>
-          <button class="ghost" id="rtkLogBtn">RtkPublisher</button>
-          <button class="ghost" id="cameraLogBtn">CameraPublisher</button>
-        </div>
-      </div>
-
-      <pre class="logs" id="logs">Loading logs...</pre>
-
-      <details class="status-box" style="margin-top: 20px;" open>
-        <summary class="label" style="cursor: pointer; list-style: none;">Tools</summary>
-        <div class="toolbar" style="margin: 12px 0 16px;">
-          <button class="copy" id="copyBtn">Copy to Drive</button>
-          <button class="ghost" id="topicsBtn">List Topics</button>
-          <button class="ghost" id="checkCpuFreqBtn">Check CPU Freq</button>
-          <button class="ghost" id="setCpuFreqMaxBtn">Set CPU Max</button>
-        </div>
-        <pre class="logs" id="toolLogs" style="min-height: 120px; max-height: 260px;">No tool has run yet.</pre>
       </details>
     </div>
+
   </div>
 
   <script>
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
     const copyBtn = document.getElementById("copyBtn");
     const topicsBtn = document.getElementById("topicsBtn");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const uniLogBtn = document.getElementById("uniLogBtn");
-    const recorderLogBtn = document.getElementById("recorderLogBtn");
-    const rtkLogBtn = document.getElementById("rtkLogBtn");
-    const cameraLogBtn = document.getElementById("cameraLogBtn");
+    const checkCpuFreqBtn = document.getElementById("checkCpuFreqBtn");
+    const setCpuFreqMaxBtn = document.getElementById("setCpuFreqMaxBtn");
     const defaultParamsBtn = document.getElementById("defaultParamsBtn");
     const zeroParamsBtn = document.getElementById("zeroParamsBtn");
     const saveParamsBtn = document.getElementById("saveParamsBtn");
-    const bagNameSuffix = document.getElementById("bagNameSuffix");
     const saveBagSuffixBtn = document.getElementById("saveBagSuffixBtn");
+    const statusPill = document.getElementById("statusPill");
     const runningStatus = document.getElementById("runningStatus");
-    const containerName = document.getElementById("containerName");
     const composeFile = document.getElementById("composeFile");
-    const checkCpuFreqBtn = document.getElementById("checkCpuFreqBtn");
-    const setCpuFreqMaxBtn = document.getElementById("setCpuFreqMaxBtn");
-    const toolLogs = document.getElementById("toolLogs");
+    const logTabs = document.getElementById("logTabs");
     const logs = document.getElementById("logs");
+    const toolLogs = document.getElementById("toolLogs");
+    const message = document.getElementById("message");
     const alphaBaisBias = document.getElementById("alphaBaisBias");
     const rangeFixA0 = document.getElementById("rangeFixA0");
     const rangeFixA1 = document.getElementById("rangeFixA1");
-    const message = document.getElementById("message");
+    const bagNameSuffix = document.getElementById("bagNameSuffix");
+
     let actionInFlight = false;
     let logContainer = "UniLidarSdk";
     const defaultCalibrationParams = {
@@ -367,32 +378,27 @@ INDEX_HTML = """<!doctype html>
 
     function setMessage(text, isError = false) {
       message.textContent = text;
-      message.className = "message " + (isError ? "bad" : "");
+      message.className = "message" + (isError ? " error" : "");
     }
 
-    function setActionState(busy) {
+    function setBusy(busy) {
       actionInFlight = busy;
-      startBtn.disabled = busy;
-      stopBtn.disabled = busy;
-      copyBtn.disabled = busy;
-      topicsBtn.disabled = busy;
-      refreshBtn.disabled = busy;
-      uniLogBtn.disabled = busy;
-      recorderLogBtn.disabled = busy;
-      rtkLogBtn.disabled = busy;
-      cameraLogBtn.disabled = busy;
-      saveParamsBtn.disabled = busy;
-      saveBagSuffixBtn.disabled = busy;
-      checkCpuFreqBtn.disabled = busy;
-      setCpuFreqMaxBtn.disabled = busy;
+      document.querySelectorAll("button").forEach((b) => { b.disabled = busy; });
     }
 
     function setLogContainer(name) {
       logContainer = name;
-      uniLogBtn.className = "ghost " + (name === "UniLidarSdk" ? "toggle-active" : "");
-      recorderLogBtn.className = "ghost " + (name === "Recorder" ? "toggle-active" : "");
-      rtkLogBtn.className = "ghost " + (name === "RtkPublisher" ? "toggle-active" : "");
-      cameraLogBtn.className = "ghost " + (name === "CameraPublisher" ? "toggle-active" : "");
+      logTabs.querySelectorAll(".tab").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.container === name);
+      });
+    }
+
+    function setLogText(pane, text) {
+      const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
+      pane.textContent = text;
+      if (nearBottom) {
+        pane.scrollTop = pane.scrollHeight;
+      }
     }
 
     async function refreshStatus() {
@@ -400,11 +406,19 @@ INDEX_HTML = """<!doctype html>
         const data = await fetchJson("/api/status");
         const running = Boolean(data.running);
         runningStatus.textContent = running ? "Running" : "Stopped";
-        runningStatus.className = "value " + (running ? "ok" : "bad");
-        containerName.textContent = data.container_name || "-";
-        composeFile.textContent = data.compose_file || "-";
+        statusPill.className = "pill " + (running ? "running" : "stopped");
+        composeFile.textContent = (data.container_name || "-") + " · " + (data.compose_file || "-");
       } catch (error) {
         setMessage(error.message, true);
+      }
+    }
+
+    async function refreshLogs() {
+      try {
+        const data = await fetchJson("/api/logs?tail=50&container=" + encodeURIComponent(logContainer));
+        setLogText(logs, data.logs || "No logs yet.");
+      } catch (error) {
+        logs.textContent = error.message;
       }
     }
 
@@ -422,35 +436,6 @@ INDEX_HTML = """<!doctype html>
       };
     }
 
-    function setBagSuffix(value) {
-      bagNameSuffix.value = value ?? "";
-    }
-
-    function setPresetAndSave(params) {
-      setParameterInputs(params);
-      return saveParameters(getParameterInputs());
-    }
-
-    async function listTopics() {
-      if (actionInFlight) return;
-      setActionState(true);
-      setMessage("Listing ROS 2 topics...");
-      try {
-        const data = await fetchJson("/api/topics", { method: "POST" });
-        const output = [data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "No topics found.";
-        toolLogs.textContent = output;
-        toolLogs.scrollTop = toolLogs.scrollHeight;
-        setMessage(data.stdout || "Topic list loaded.");
-      } catch (error) {
-        toolLogs.textContent = error.message;
-        setMessage(error.message, true);
-      } finally {
-        setActionState(false);
-        await refreshStatus();
-        await refreshLogs();
-      }
-    }
-
     async function refreshParameters() {
       try {
         const data = await fetchJson("/api/params");
@@ -463,42 +448,32 @@ INDEX_HTML = """<!doctype html>
     async function refreshBagSuffix() {
       try {
         const data = await fetchJson("/api/bag_suffix");
-        setBagSuffix(data.bag_name_suffix || "");
+        bagNameSuffix.value = data.bag_name_suffix || "";
       } catch (error) {
         setMessage(error.message, true);
       }
     }
 
-    async function refreshLogs() {
-      try {
-        const data = await fetchJson("/api/logs?tail=50&container=" + encodeURIComponent(logContainer));
-        logs.textContent = data.logs || "No logs yet.";
-        logs.scrollTop = logs.scrollHeight;
-      } catch (error) {
-        logs.textContent = error.message;
-      }
-    }
-
-    async function runAction(path, outputTarget = null) {
+    async function runAction(path, outputTarget = null, busyText = null) {
       if (actionInFlight) return;
-      setActionState(true);
-      setMessage("Running " + path.replace("/api/", "") + "...");
+      setBusy(true);
+      setMessage(busyText || ("Running " + path.replace("/api/", "") + "..."));
       try {
         const data = await fetchJson(path, { method: "POST" });
         if (outputTarget) {
           outputTarget.textContent = [data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "No output.";
           outputTarget.scrollTop = outputTarget.scrollHeight;
+          setMessage("Done.");
         } else {
           setMessage(data.stdout || "Command finished.");
         }
       } catch (error) {
         if (outputTarget) {
           outputTarget.textContent = error.message;
-        } else {
-          setMessage(error.message, true);
         }
+        setMessage(error.message, true);
       } finally {
-        setActionState(false);
+        setBusy(false);
         await refreshStatus();
         await refreshLogs();
       }
@@ -506,19 +481,13 @@ INDEX_HTML = """<!doctype html>
 
     async function saveParameters(overrides = null) {
       if (actionInFlight) return;
-      if (overrides && typeof overrides.preventDefault === "function") {
-        overrides.preventDefault();
-        overrides = null;
-      }
-      setActionState(true);
+      setBusy(true);
       setMessage("Saving parameters...");
       try {
         const payload = overrides || getParameterInputs();
         const data = await fetchJson("/api/params", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         setMessage(data.stdout || "Parameters saved.");
@@ -526,68 +495,56 @@ INDEX_HTML = """<!doctype html>
       } catch (error) {
         setMessage(error.message, true);
       } finally {
-        setActionState(false);
+        setBusy(false);
         await refreshStatus();
-        await refreshLogs();
       }
     }
 
     async function saveBagSuffix() {
       if (actionInFlight) return;
-      setActionState(true);
+      setBusy(true);
       setMessage("Saving bag postfix...");
       try {
-        const payload = {
-          bag_name_suffix: bagNameSuffix.value,
-        };
+        const payload = { bag_name_suffix: bagNameSuffix.value };
         const data = await fetchJson("/api/bag_suffix", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         setMessage(data.stdout || "Bag postfix saved.");
-        setBagSuffix(data.bag_name_suffix || payload.bag_name_suffix);
+        bagNameSuffix.value = data.bag_name_suffix ?? payload.bag_name_suffix;
       } catch (error) {
         setMessage(error.message, true);
       } finally {
-        setActionState(false);
+        setBusy(false);
         await refreshStatus();
-        await refreshLogs();
       }
     }
 
-    startBtn.addEventListener("click", () => runAction("/api/start"));
-    stopBtn.addEventListener("click", () => runAction("/api/stop"));
-    copyBtn.addEventListener("click", () => runAction("/api/copy", toolLogs));
-    topicsBtn.addEventListener("click", listTopics);
+    startBtn.addEventListener("click", () => runAction("/api/start", null, "Starting UniLidar..."));
+    stopBtn.addEventListener("click", () => runAction("/api/stop", null, "Stopping UniLidar..."));
+    copyBtn.addEventListener("click", () => runAction("/api/copy", toolLogs, "Copying to drive..."));
+    topicsBtn.addEventListener("click", () => runAction("/api/topics", toolLogs, "Listing ROS 2 topics..."));
     checkCpuFreqBtn.addEventListener("click", () => runAction("/api/cpu_freq", toolLogs));
     setCpuFreqMaxBtn.addEventListener("click", () => runAction("/api/cpu_freq_max", toolLogs));
-    uniLogBtn.addEventListener("click", async () => {
-      setLogContainer("UniLidarSdk");
-      await refreshLogs();
-    });
-    recorderLogBtn.addEventListener("click", async () => {
-      setLogContainer("Recorder");
-      await refreshLogs();
-    });
-    rtkLogBtn.addEventListener("click", async () => {
-      setLogContainer("RtkPublisher");
-      await refreshLogs();
-    });
-    cameraLogBtn.addEventListener("click", async () => {
-      setLogContainer("CameraPublisher");
-      await refreshLogs();
-    });
-    defaultParamsBtn.addEventListener("click", () => setPresetAndSave(defaultCalibrationParams));
-    zeroParamsBtn.addEventListener("click", () => setPresetAndSave({
-      alpha_bais_bias: "0",
-      range_fix_a0: "0",
-      range_fix_a1: "0",
-    }));
     saveParamsBtn.addEventListener("click", () => saveParameters());
+    defaultParamsBtn.addEventListener("click", () => {
+      setParameterInputs(defaultCalibrationParams);
+      saveParameters(defaultCalibrationParams);
+    });
+    zeroParamsBtn.addEventListener("click", () => {
+      const zeros = { alpha_bais_bias: "0", range_fix_a0: "0", range_fix_a1: "0" };
+      setParameterInputs(zeros);
+      saveParameters(zeros);
+    });
     saveBagSuffixBtn.addEventListener("click", saveBagSuffix);
+    logTabs.addEventListener("click", async (event) => {
+      const tab = event.target.closest(".tab");
+      if (!tab || actionInFlight) return;
+      setLogContainer(tab.dataset.container);
+      logs.textContent = "Loading logs...";
+      await refreshLogs();
+    });
     refreshBtn.addEventListener("click", async () => {
       await refreshStatus();
       await refreshParameters();
@@ -596,7 +553,6 @@ INDEX_HTML = """<!doctype html>
     });
 
     refreshStatus();
-    setLogContainer("UniLidarSdk");
     refreshParameters();
     refreshBagSuffix();
     refreshLogs();
