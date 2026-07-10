@@ -5,6 +5,7 @@
 * RK3566 for data collection.
 * UniLidar L2 for pointcloud.
 * 3D print box : https://www.tinkercad.com/things/cM7BuANyys1-unilidar-box
+* UniScanner : https://mapmindai.github.io/uniscanner/
 
 ![rtk_fused_mapping](assets/rtk_fused_mapping.gif)
 
@@ -98,8 +99,8 @@ result in Pangolin until the geometry looks consistent.
 
 | view | before | after |
 |---|---|---|
-| top view | ![raw top](assets/raw_top.png) | ![calib top](assets/calib_top.png) |
-| side view | ![raw side](assets/raw_side.png) | ![calib side](assets/calib_side.png) |
+| top view | ![raw top](assets/raw_top.jpg) | ![calib top](assets/calib_top.jpg) |
+| side view | ![raw side](assets/raw_side.jpg) | ![calib side](assets/calib_side.jpg) |
 
 
 ## Highlight: Remote Web Control

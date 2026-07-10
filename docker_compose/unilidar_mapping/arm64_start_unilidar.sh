@@ -37,6 +37,9 @@ if [[ -e "${RTK_SERIAL_PORT:-/dev/ttyUSB0}" ]]; then
   sudo chmod 777 "${RTK_SERIAL_PORT:-/dev/ttyUSB0}"
 fi
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+"${REPO_ROOT}/tools/set_cpu_freq_max.sh"
+
 docker compose \
   -p "${COMPOSE_PROJECT_NAME}" \
   -f "${COMPOSE_FILE_PATH}" \
