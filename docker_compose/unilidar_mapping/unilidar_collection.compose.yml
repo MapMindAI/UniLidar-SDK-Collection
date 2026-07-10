@@ -99,4 +99,4 @@ services:
           sleep 1
         done
         source /opt/ros/humble/setup.bash
-        exec /usr/bin/python3 /unilidar_sdk2_bazel/tools/rtk_ros_publisher.py
+        exec /usr/bin/python3 /unilidar_sdk2_bazel/tools/rtk/rtk_ros_publisher.py
