@@ -66,7 +66,8 @@ commands are in [doc/UnilidarSDK/README.md](doc/UnilidarSDK/README.md).
 
 The repo ships with a small browser UI for starting and stopping the compose
 stack, checking logs, running utility scripts, and editing the lidar
-calibration values stored in the compose file.
+calibration values stored in the compose file. A second page,
+`/mid360`, controls the natively-run Livox Mid-360 SDK and its bag recorder.
 
 ![Remote web control screenshot](assets/remote_web_control_screenshot.png)
 
