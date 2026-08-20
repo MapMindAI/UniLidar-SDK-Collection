@@ -11,6 +11,8 @@ remote web control panel.
 ## What is in this repo
 
 - `unitree_lidar_sdk/`: vendor SDK, examples, ROS 2 bridge, and offline packet tools
+- `Livox-SDK2/`, `livox_ros_driver2/`: vendor Livox Mid-360 SDK and ROS 2 driver
+- `tools/livox/`: Livox SDK/driver build and start scripts
 - `tools/rtk/`: RTK GNSS publisher and helpers
 - `tools/camera/`: USB camera publisher, viewer, and calibration tools
 - `docker_compose/`: compose stack, checked-in arm64 lidar binary, and boot service
@@ -40,6 +42,7 @@ Re-login or reboot after the first run so the `dialout` group change takes effec
 
 - [Unitree Lidar SDK and calibration](doc/UnilidarSDK/README.md)
 - [Remote web control](doc/RemoteWebControl/README.md)
+- [Livox Mid-360](doc/README_LIVOX.md)
 - [RTK GNSS](doc/README_RTK.md)
 - [Camera tools and calibration](doc/README_CAMERA.md)
 

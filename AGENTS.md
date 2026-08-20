@@ -2,9 +2,9 @@ Mandatory rules for AI coding agents contributing to this repo. Direct user inst
 
 ## Repository layout
 
-UniLidar SDK Collection packages the Unitree L2 lidar SDK, an RTK GNSS
-pipeline, USB camera tooling, and a Docker/systemd deployment for an
-RK3566-based mapping data collector.
+UniLidar SDK Collection packages the Unitree L2 lidar SDK, a Livox Mid-360
+SDK/driver, an RTK GNSS pipeline, USB camera tooling, and a Docker/systemd
+deployment for an RK3566-based mapping data collector.
 
 ```
 ├── unitree_lidar_sdk/                 # Vendor Unitree lidar SDK (Bazel, C++17)
@@ -14,11 +14,15 @@ RK3566-based mapping data collector.
 │   │                                   # calibration_optimizer, replayer_viewer (Pangolin)
 │   ├── unitree_lidar_rosnode.cc       # ROS 2 bridge: publishes /unilidar/imu, /unilidar/cloud
 │   └── README_calibrate.md            # calibration workflow, current known issues
+├── Livox-SDK2/                        # Vendor Livox SDK git submodule (CMake, C++11)
+├── livox_ros_driver2/                 # Vendor Livox ROS 2 driver git submodule
+│   └── config/                        # per-deployment host/lidar IP config (MID360_config.json, ...)
 ├── tools/                             # standalone Python/shell scripts, no package structure
 │   ├── rtk/                           # rtk_ros_publisher.py (NTRIP+NMEA -> NavSatFix), rtk_test.py,
 │   │                                   # bag_to_rtk_txt.py
 │   ├── camera/                        # camera_ros_publisher.py, camera_ros_viewer.py, list_usb_cameras.py
 │   │   └── calibration/               # AprilGrid board generator + Double Sphere intrinsics calibrator
+│   ├── livox/                         # build_livox_sdk.sh, start_livox_mid360.sh
 │   ├── setup_unilidar_sudo.sh, set_cpu_freq_max.sh, check_current_cpu_freq.sh, copy_to_drive.sh
 ├── docker_compose/
 │   ├── unilidar_mapping/               # compose file, start/stop scripts, webserver.py (remote control UI)
@@ -42,6 +46,7 @@ No CI pipeline exists in this repo yet — see §3.
 | root `README.md` | Setup flow, SDK/rosnode overview, calibration highlight, remote web control, RTK pointer |
 | `doc/README_RTK.md` | WTRTK-960H hardware specs, RTK fix states, NTRIP/NMEA background |
 | `doc/README_CAMERA.md` | Camera tooling and the AprilGrid/Double Sphere calibration workflow (fill in alongside `tools/camera/`) |
+| `doc/README_LIVOX.md` | Livox Mid-360 network prerequisite, `tools/livox/*` build/run scripts, `MID360_config.json` |
 | `unitree_lidar_sdk/README_calibrate.md` | Lidar extrinsic calibration workflow, automatic vs. manual tuning, known issues |
 
 Read whichever doc(s) cover the subsystem you're about to touch — the Bazel/ROS 2 dependency wiring and the docker-compose/systemd deployment path aren't obvious from a single file's context.
@@ -54,6 +59,7 @@ Ship the doc fix with the code — not as a follow-up.
 |---|---|
 | RTK hardware, NTRIP/NMEA handling, or `tools/rtk/*` behavior | `doc/README_RTK.md` |
 | Camera publisher/viewer or `tools/camera/calibration/*` behavior | `doc/README_CAMERA.md` |
+| `tools/livox/*` build/run scripts or `livox_ros_driver2/config/*.json` | `doc/README_LIVOX.md` |
 | `unitree_lidar_sdk/calibration/*` or the extrinsic calibration workflow | `unitree_lidar_sdk/README_calibrate.md` |
 | `unitree_lidar_sdk/unitree_lidar_rosnode.cc` or its Bazel deps | rebuild for arm64 and replace `docker_compose/unitree_lidar_sdk/unitree_lidar_rosnode` — the compose stack execs that checked-in binary directly, it is **not** built from source at deploy time |
 | `docker_compose/unilidar_mapping/webserver.py` UI/controls, new tool buttons | root `README.md`'s "Remote Web Control" table |
@@ -83,7 +89,8 @@ Once the diff is functionally complete, run `/simplify`. Apply the legitimate fi
 Follow the harness's default git-safety protocol (no force-push, `git reset --hard`, branch deletion, or `--no-verify` without explicit user confirmation this session). Repo-specific additions:
 
 * Treat vendor files as read-only unless the user asks for a rewrite: `unitree_lidar_sdk/include/`, `unitree_lidar_sdk/lib/{aarch64,x86_64}/`, and the checked-in `docker_compose/unitree_lidar_sdk/unitree_lidar_rosnode` binary. They're either vendor-supplied or a build artifact — hand-editing them desyncs source from binary silently.
-* `setup.sh`, `tools/set_cpu_freq_max.sh`, `tools/setup_unilidar_sudo.sh`, and `docker_compose/boot_app/enable_unilidar_web_boot.sh` write real root-owned system state (sudoers rules, CPU governor, a systemd unit) on whatever machine they run on. Never run them speculatively to "see what happens" — read them, then confirm with the user before executing.
+* `Livox-SDK2/` and `livox_ros_driver2/` are vendor git submodules — same read-only rule, except each deployment is expected to edit `livox_ros_driver2/config/*.json` for its host/lidar IPs.
+* `setup.sh`, `tools/set_cpu_freq_max.sh`, `tools/setup_unilidar_sudo.sh`, `tools/livox/build_livox_sdk.sh`, and `docker_compose/boot_app/enable_unilidar_web_boot.sh` write real root-owned system state (sudoers rules, CPU governor, `sudo make install`/apt packages, a systemd unit) on whatever machine they run on. Never run them speculatively to "see what happens" — read them, then confirm with the user before executing.
 * `docker_compose/unilidar_mapping/*.compose.yml` changes affect a stack that may be live on a deployed device; don't assume a `docker compose up -d --force-recreate` is safe to run without confirming the target.
 
 ## 7. Scope discipline
