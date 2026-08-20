@@ -60,3 +60,13 @@ standard `PointCloud2` xfer format via a copy of the launch file).
 Edit `livox_ros_driver2/config/MID360_config.json` for this deployment's
 host IP and the lidar's IP — see the field reference in
 `livox_ros_driver2/README.md` §4.
+
+## Recording and downloading bags
+
+The `/mid360` remote web control page (see `doc/RemoteWebControl/README.md`)
+records `ros2 bag` sessions to `data/rosbags_mid360/` on the device. From a
+dev machine, pull them off and delete them from the device with:
+
+```bash
+REMOTE_HOST=<user>@<device-ip> tools/fetch_rosbags.sh
+```

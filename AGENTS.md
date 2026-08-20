@@ -23,7 +23,8 @@ deployment for an RK3566-based mapping data collector.
 │   ├── camera/                        # camera_ros_publisher.py, camera_ros_viewer.py, list_usb_cameras.py
 │   │   └── calibration/               # AprilGrid board generator + Double Sphere intrinsics calibrator
 │   ├── livox/                         # build_livox_sdk.sh, start_livox_mid360.sh
-│   ├── setup_unilidar_sudo.sh, set_cpu_freq_max.sh, check_current_cpu_freq.sh, copy_to_drive.sh
+│   ├── setup_unilidar_sudo.sh, set_cpu_freq_max.sh, check_current_cpu_freq.sh, copy_to_drive.sh,
+│   │                                   # fetch_rosbags.sh (download rosbags from a device over SSH, then delete them there)
 ├── docker_compose/
 │   ├── unilidar_mapping/               # compose file, start/stop scripts, webserver.py (remote control UI)
 │   ├── unitree_lidar_sdk/              # CHECKED-IN prebuilt arm64 unitree_lidar_rosnode binary
@@ -92,6 +93,7 @@ Follow the harness's default git-safety protocol (no force-push, `git reset --ha
 * `Livox-SDK2/` and `livox_ros_driver2/` are vendor git submodules — same read-only rule, except each deployment is expected to edit `livox_ros_driver2/config/*.json` for its host/lidar IPs.
 * `setup.sh`, `tools/set_cpu_freq_max.sh`, `tools/setup_unilidar_sudo.sh`, `tools/livox/build_livox_sdk.sh`, and `docker_compose/boot_app/enable_unilidar_web_boot.sh` write real root-owned system state (sudoers rules, CPU governor, `sudo make install`/apt packages, a systemd unit) on whatever machine they run on. Never run them speculatively to "see what happens" — read them, then confirm with the user before executing.
 * `docker_compose/unilidar_mapping/*.compose.yml` changes affect a stack that may be live on a deployed device; don't assume a `docker compose up -d --force-recreate` is safe to run without confirming the target.
+* `tools/fetch_rosbags.sh` deletes each rosbag from the remote device after downloading it — confirm the target device and destination with the user before running it, since a bad `REMOTE_HOST`/`REMOTE_BAG_SUBDIR` deletes real field data with no server-side undo.
 
 ## 7. Scope discipline
 
