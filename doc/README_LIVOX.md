@@ -81,5 +81,10 @@ records `ros2 bag` sessions to `data/rosbags_mid360/` on the device. From a
 dev machine, pull them off and delete them from the device with:
 
 ```bash
-REMOTE_HOST=<user>@<device-ip> tools/fetch_rosbags.sh
+tools/fetch_rosbags.sh
 ```
+
+`REMOTE_HOST` and `REMOTE_SSH_PASSWORD` default to the deployed RK3588, so a
+bare run pulls from — and deletes on — that device. For any other device set
+`REMOTE_HOST=<user>@<device-ip>`, and `REMOTE_SSH_PASSWORD=""` to authenticate
+with SSH keys instead.

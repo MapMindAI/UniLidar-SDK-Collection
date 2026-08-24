@@ -95,7 +95,7 @@ Follow the harness's default git-safety protocol (no force-push, `git reset --ha
 * `livox_ros_driver2/` is an in-tree fork of the upstream driver (from `4a1def9`), not a submodule: edit it directly, but keep changes minimal and localized so upstream diffs stay readable. Each deployment is expected to edit `livox_ros_driver2/config/MID360_config.json` for its host/lidar IPs.
 * `setup.sh`, `tools/set_cpu_freq_max.sh`, `tools/setup_unilidar_sudo.sh`, `tools/livox/build_livox_sdk.sh`, and `docker_compose/boot_app/enable_unilidar_web_boot.sh` write real root-owned system state (sudoers rules, CPU governor, `sudo make install`/apt packages, a systemd unit) on whatever machine they run on. Never run them speculatively to "see what happens" — read them, then confirm with the user before executing.
 * `docker_compose/unilidar_mapping/*.compose.yml` changes affect a stack that may be live on a deployed device; don't assume a `docker compose up -d --force-recreate` is safe to run without confirming the target.
-* `tools/fetch_rosbags.sh` deletes each rosbag from the remote device after downloading it — confirm the target device and destination with the user before running it, since a bad `REMOTE_HOST`/`REMOTE_BAG_SUBDIR` deletes real field data with no server-side undo.
+* `tools/fetch_rosbags.sh` deletes each rosbag from the remote device after downloading it, and `REMOTE_HOST`/`REMOTE_SSH_PASSWORD` now default to the deployed RK3588 — so a bare run with no environment set deletes that device's field data, with no server-side undo. Confirm the target device and destination with the user before running it.
 
 ## 7. Scope discipline
 

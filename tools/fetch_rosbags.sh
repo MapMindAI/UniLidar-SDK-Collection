@@ -4,7 +4,9 @@ set -euo pipefail
 # Downloads rosbag directories from a remote collection device over SSH/rsync
 # and removes each one from the device after a successful copy.
 
-REMOTE_HOST="${REMOTE_HOST:?set REMOTE_HOST to user@device-ip, e.g. firefly@192.168.19.139}"
+# Defaults target the deployed RK3588 collector, so a bare run downloads and
+# then DELETES that device's bags. Override REMOTE_HOST for any other device.
+REMOTE_HOST="${REMOTE_HOST:-firefly@192.168.19.139}"
 REMOTE_REPO_DIR="${REMOTE_REPO_DIR:-work/UniLidar-SDK-Collection}"
 REMOTE_BAG_SUBDIR="${REMOTE_BAG_SUBDIR:-rosbags_mid360}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,13 +25,14 @@ Behavior:
   - Removes each rosbag directory from the device after a successful copy
 
 Environment overrides:
-  REMOTE_HOST          required, e.g. firefly@192.168.19.139
+  REMOTE_HOST           device to pull from (default: ${REMOTE_HOST})
   REMOTE_REPO_DIR       repo path on the device (default: ${REMOTE_REPO_DIR})
   REMOTE_BAG_SUBDIR     "rosbags_mid360" (default) or "rosbags" for the
                          docker Recorder's bags
   LOCAL_DEST_ROOT       local destination (default: ${LOCAL_DEST_ROOT})
-  REMOTE_SSH_PASSWORD   use sshpass instead of SSH keys/agent (dev convenience
-                         only — never commit a password to this repo)
+  REMOTE_SSH_PASSWORD   sshpass password for REMOTE_HOST (defaults to the
+                         RK3588's stock password). Set it empty to use SSH
+                         keys/agent instead.
 EOF
 }
 
@@ -44,7 +47,15 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
-if [[ -n "${REMOTE_SSH_PASSWORD:-}" ]]; then
+# Single dash, so REMOTE_SSH_PASSWORD="" opts back into SSH keys/agent.
+REMOTE_SSH_PASSWORD="${REMOTE_SSH_PASSWORD-firefly}"
+
+if [[ -n "${REMOTE_SSH_PASSWORD}" ]] && ! command -v sshpass >/dev/null 2>&1; then
+  echo "sshpass not installed; falling back to SSH keys/agent." >&2
+  REMOTE_SSH_PASSWORD=""
+fi
+
+if [[ -n "${REMOTE_SSH_PASSWORD}" ]]; then
   export SSHPASS="${REMOTE_SSH_PASSWORD}"
   SSH_CMD=(sshpass -e ssh -o StrictHostKeyChecking=accept-new)
   RSYNC_RSH="sshpass -e ssh -o StrictHostKeyChecking=accept-new"
