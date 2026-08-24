@@ -3,8 +3,12 @@ import json
 import os
 import re
 import shlex
+import signal
 import subprocess
 import sys
+import tempfile
+import threading
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -55,15 +59,41 @@ PARAM_LINE_RE = re.compile(
     r"(?P<mid2>\s+(?:--)?range_fix_a1=)(?P<range_fix_a1>\S+)"
 )
 
+# Mid-360 collection: the Livox SDK/driver and its bag recorder run natively on
+# the host (ROS 2 Jazzy), not inside the humble docker stack above, so they're
+# managed as plain background processes rather than docker containers.
+LIVOX_START_SCRIPT = Path(
+    os.environ.get(
+        "UNILIDAR_LIVOX_START_SCRIPT",
+        REPO_ROOT / "tools" / "livox" / "start_livox_mid360.sh",
+    )
+)
+MID360_ROS_DISTRO = os.environ.get("UNILIDAR_MID360_ROS_DISTRO", "jazzy")
+# Must match the LIVOX_WS default in tools/livox/start_livox_mid360.sh.
+MID360_WS = Path(os.environ.get("UNILIDAR_MID360_WS", Path.home() / "ws_livox"))
+MID360_BAG_DIR = Path(
+    os.environ.get("UNILIDAR_MID360_BAG_DIR", REPO_ROOT / "data" / "rosbags_mid360")
+)
+MID360_LOG_DIR = Path(
+    os.environ.get("UNILIDAR_MID360_LOG_DIR", Path(tempfile.gettempdir()) / "unilidar_mid360")
+)
+MID360_SDK_LOG = MID360_LOG_DIR / "livox_sdk.log"
+MID360_RECORDER_LOG = MID360_LOG_DIR / "recorder.log"
+MID360_SDK_PID_FILE = MID360_LOG_DIR / "livox_sdk.pid"
+MID360_RECORDER_PID_FILE = MID360_LOG_DIR / "recorder.pid"
+MID360_BAG_TOPICS = (
+    "/livox/lidar",
+    "/livox/imu",
+    "/camera/camera/depth/image_rect_raw",
+    "/camera/camera/infra1/camera_info",
+    "/camera/camera/infra1/image_rect_raw",
+    "/camera/camera/infra2/camera_info",
+    "/camera/camera/infra2/image_rect_raw",
+    "/camera/camera/vio_20hz",
+)
 
-INDEX_HTML = """
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UniLidar Control</title>
-  <style>
+
+PAGE_STYLE = """
     :root {
       --bg: #0d1117;
       --panel: #161b22;
@@ -112,6 +142,13 @@ INDEX_HTML = """
       flex-wrap: wrap;
     }
     .meta { color: var(--muted); font-size: 12px; word-break: break-all; }
+    .nav { display: flex; gap: 6px; margin-top: 8px; }
+    .nav a.tab {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
     .pill {
       display: inline-flex;
       align-items: center;
@@ -247,18 +284,71 @@ INDEX_HTML = """
     }
     .field input:focus { border-color: var(--blue); }
     .divider { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
-  </style>
+"""
+
+PAGE_SCRIPT_HELPERS = """
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Request failed");
+      }
+      return data;
+    }
+
+    function showMessage(el, text, isError = false) {
+      el.textContent = text;
+      el.className = "message" + (isError ? " error" : "");
+    }
+
+    function setLogText(pane, text) {
+      const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
+      pane.textContent = text;
+      if (nearBottom) {
+        pane.scrollTop = pane.scrollHeight;
+      }
+    }
+"""
+
+NAV_LINKS = """
+        <div class="nav">
+          <a class="tab{index_active}" href="/">UniLidar Control</a>
+          <a class="tab{mid360_active}" href="/mid360">Mid360 Collection</a>
+        </div>"""
+
+
+def nav_html(active):
+    return NAV_LINKS.format(
+        index_active=" active" if active == "index" else "",
+        mid360_active=" active" if active == "mid360" else "",
+    )
+
+
+INDEX_HTML = (
+    """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UniLidar Control</title>
+  <style>"""
+    + PAGE_STYLE
+    + """</style>
 </head>
 <body>
   <div class="layout">
 
     <header class="card headbar">
       <div>
-        <h1>UniLidar Control</h1>
+        <h1>UniLidar Control</h1>"""
+    + nav_html("index")
+    + """
         <div class="meta" id="composeFile"></div>
       </div>
       <div class="pill" id="statusPill"><span class="dot"></span><span id="runningStatus">Checking…</span></div>
-    </header>
+    </header>"""
+    + """
 
     <div class="card">
       <div class="row">
@@ -335,7 +425,9 @@ INDEX_HTML = """
 
   </div>
 
-  <script>
+  <script>"""
+    + PAGE_SCRIPT_HELPERS
+    + """
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const refreshBtn = document.getElementById("refreshBtn");
@@ -367,18 +459,8 @@ INDEX_HTML = """
       range_fix_a1: "-0.007",
     };
 
-    async function fetchJson(url, options) {
-      const response = await fetch(url, options);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Request failed");
-      }
-      return data;
-    }
-
     function setMessage(text, isError = false) {
-      message.textContent = text;
-      message.className = "message" + (isError ? " error" : "");
+      showMessage(message, text, isError);
     }
 
     function setBusy(busy) {
@@ -391,14 +473,6 @@ INDEX_HTML = """
       logTabs.querySelectorAll(".tab").forEach((tab) => {
         tab.classList.toggle("active", tab.dataset.container === name);
       });
-    }
-
-    function setLogText(pane, text) {
-      const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
-      pane.textContent = text;
-      if (nearBottom) {
-        pane.scrollTop = pane.scrollHeight;
-      }
     }
 
     async function refreshStatus() {
@@ -562,6 +636,213 @@ INDEX_HTML = """
 </body>
 </html>
 """
+)
+
+
+MID360_HTML = (
+    """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mid360 Collection</title>
+  <style>"""
+    + PAGE_STYLE
+    + """</style>
+</head>
+<body>
+  <div class="layout">
+
+    <header class="card headbar">
+      <div>
+        <h1>Mid360 Collection</h1>"""
+    + nav_html("mid360")
+    + """
+        <div class="meta" id="bagDir"></div>
+      </div>
+      <div class="row">
+        <div class="pill" id="sdkPill"><span class="dot"></span>SDK: <span id="sdkStatus">Checking…</span></div>
+        <div class="pill" id="recorderPill"><span class="dot"></span>Recorder: <span id="recorderStatus">Checking…</span></div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="cardhead"><h2>Mid360 SDK</h2></div>
+      <p class="muted" style="margin: 0 0 12px;">
+        Runs <code>tools/livox/start_livox_mid360.sh</code> natively (ROS 2 Jazzy)
+        and publishes <code>/livox/lidar</code> + <code>/livox/imu</code>. See
+        <code>doc/README_LIVOX.md</code> for the network prerequisite.
+      </p>
+      <div class="row">
+        <button class="btn-start" id="startSdkBtn">&#9654; Start Mid360 SDK</button>
+        <button class="btn-stop" id="stopSdkBtn">&#9632; Stop Mid360 SDK</button>
+      </div>
+
+      <hr class="divider">
+
+      <div class="cardhead"><h2>Bag Recorder</h2></div>
+      <p class="muted" style="margin: 0 0 12px;">
+        Records <code>/livox/lidar</code>, <code>/livox/imu</code>, and the depth/infra/vio
+        camera topics with <code>ros2 bag record</code>.
+      </p>
+      <div class="field" style="max-width: 260px; margin-bottom: 10px;">
+        <label for="bagPostfix">bag name postfix</label>
+        <input id="bagPostfix" type="text" spellcheck="false" placeholder="_postfix">
+      </div>
+      <div class="row">
+        <button class="btn-start" id="startRecorderBtn">&#9654; Start Recording</button>
+        <button class="btn-stop" id="stopRecorderBtn">&#9632; Stop Recording</button>
+      </div>
+
+      <div class="message" id="message"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardhead"><h2>Tools</h2></div>
+      <div class="row">
+        <button class="btn-primary" id="cpuFreqMaxBtn">Set CPU Max</button>
+        <button id="cpuFreqBtn">Check CPU Freq</button>
+      </div>
+      <pre class="logs small" id="toolLogs" style="margin-top: 12px;">No tool has run yet.</pre>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <h2>Logs</h2>
+        <button id="refreshBtn">Refresh</button>
+      </div>
+      <div class="tabs" id="logTabs">
+        <button class="tab active" data-target="sdk">Mid360 SDK</button>
+        <button class="tab" data-target="recorder">Bag Recorder</button>
+      </div>
+      <pre class="logs" id="logs">Loading logs...</pre>
+    </div>
+
+  </div>
+
+  <script>"""
+    + PAGE_SCRIPT_HELPERS
+    + """
+    const startSdkBtn = document.getElementById("startSdkBtn");
+    const stopSdkBtn = document.getElementById("stopSdkBtn");
+    const startRecorderBtn = document.getElementById("startRecorderBtn");
+    const stopRecorderBtn = document.getElementById("stopRecorderBtn");
+    const cpuFreqBtn = document.getElementById("cpuFreqBtn");
+    const cpuFreqMaxBtn = document.getElementById("cpuFreqMaxBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const sdkPill = document.getElementById("sdkPill");
+    const sdkStatus = document.getElementById("sdkStatus");
+    const recorderPill = document.getElementById("recorderPill");
+    const recorderStatus = document.getElementById("recorderStatus");
+    const bagDir = document.getElementById("bagDir");
+    const bagPostfix = document.getElementById("bagPostfix");
+    const logTabs = document.getElementById("logTabs");
+    const logs = document.getElementById("logs");
+    const toolLogs = document.getElementById("toolLogs");
+    const message = document.getElementById("message");
+
+    let actionInFlight = false;
+    let logTarget = "sdk";
+
+    function setMessage(text, isError = false) {
+      showMessage(message, text, isError);
+    }
+
+    function setBusy(busy) {
+      actionInFlight = busy;
+      document.querySelectorAll("button").forEach((b) => { b.disabled = busy; });
+    }
+
+    function setLogTarget(name) {
+      logTarget = name;
+      logTabs.querySelectorAll(".tab").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.target === name);
+      });
+    }
+
+    async function refreshStatus() {
+      try {
+        const data = await fetchJson("/api/mid360/status");
+        sdkStatus.textContent = data.sdk_running ? "Running" : "Stopped";
+        sdkPill.className = "pill " + (data.sdk_running ? "running" : "stopped");
+        recorderStatus.textContent = data.recorder_running ? "Recording" : "Stopped";
+        recorderPill.className = "pill " + (data.recorder_running ? "running" : "stopped");
+        bagDir.textContent = "bags: " + (data.bag_dir || "-");
+      } catch (error) {
+        setMessage(error.message, true);
+      }
+    }
+
+    async function refreshLogs() {
+      try {
+        const data = await fetchJson("/api/mid360/logs?tail=80&target=" + encodeURIComponent(logTarget));
+        setLogText(logs, data.logs || "No logs yet.");
+      } catch (error) {
+        logs.textContent = error.message;
+      }
+    }
+
+    async function runAction(path, outputTarget = null, busyText = null, payload = null) {
+      if (actionInFlight) return;
+      setBusy(true);
+      setMessage(busyText || ("Running " + path.replace("/api/", "") + "..."));
+      try {
+        const options = { method: "POST" };
+        if (payload) {
+          options.headers = { "Content-Type": "application/json" };
+          options.body = JSON.stringify(payload);
+        }
+        const data = await fetchJson(path, options);
+        if (outputTarget) {
+          outputTarget.textContent = [data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "No output.";
+          outputTarget.scrollTop = outputTarget.scrollHeight;
+          setMessage("Done.");
+        } else {
+          setMessage(data.stdout || "Command finished.");
+        }
+      } catch (error) {
+        if (outputTarget) {
+          outputTarget.textContent = error.message;
+        }
+        setMessage(error.message, true);
+      } finally {
+        setBusy(false);
+        await refreshStatus();
+        await refreshLogs();
+      }
+    }
+
+    startSdkBtn.addEventListener("click", () => runAction("/api/mid360/start_sdk", null, "Starting Livox SDK..."));
+    stopSdkBtn.addEventListener("click", () => runAction("/api/mid360/stop_sdk", null, "Stopping Livox SDK..."));
+    startRecorderBtn.addEventListener("click", () => runAction(
+      "/api/mid360/start_recorder", null, "Starting bag recorder...",
+      { bag_name_postfix: bagPostfix.value }
+    ));
+    stopRecorderBtn.addEventListener("click", () => runAction("/api/mid360/stop_recorder", null, "Stopping bag recorder..."));
+    cpuFreqBtn.addEventListener("click", () => runAction("/api/cpu_freq", toolLogs));
+    cpuFreqMaxBtn.addEventListener("click", () => runAction("/api/cpu_freq_max", toolLogs));
+    logTabs.addEventListener("click", async (event) => {
+      const tab = event.target.closest(".tab");
+      if (!tab || actionInFlight) return;
+      setLogTarget(tab.dataset.target);
+      logs.textContent = "Loading logs...";
+      await refreshLogs();
+    });
+    refreshBtn.addEventListener("click", async () => {
+      await refreshStatus();
+      await refreshLogs();
+    });
+
+    refreshStatus();
+    refreshLogs();
+    setInterval(refreshStatus, 3000);
+    setInterval(refreshLogs, 2000);
+  </script>
+</body>
+</html>
+"""
+)
 
 
 def run_command(command):
@@ -706,6 +987,122 @@ def format_command_error(result, fallback):
     }
 
 
+def read_pid_file(pid_file):
+    try:
+        return int(pid_file.read_text().strip())
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def pid_is_alive(pid):
+    if pid is None:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def is_pid_file_running(pid_file):
+    return pid_is_alive(read_pid_file(pid_file))
+
+
+def _wait_and_note_exit(process, log_path, label):
+    returncode = process.wait()
+    try:
+        with open(log_path, "a", encoding="utf-8") as log_file:
+            log_file.write(f"\n[{label} stopped, exit code {returncode}]\n")
+    except OSError:
+        pass
+
+
+def start_background_process(command, log_path, pid_file, label):
+    if is_pid_file_running(pid_file):
+        return {"error": f"{label} is already running."}
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "w", encoding="utf-8") as log_file:
+        process = subprocess.Popen(
+            command,
+            cwd=str(REPO_ROOT),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    pid_file.parent.mkdir(parents=True, exist_ok=True)
+    pid_file.write_text(str(process.pid))
+    # Reap it as soon as it exits — otherwise it stays a zombie (still
+    # visible to os.kill(pid, 0)) for the rest of this webserver's lifetime —
+    # and note the exit in its log so the log tab shows why it went quiet.
+    threading.Thread(target=_wait_and_note_exit, args=(process, log_path, label), daemon=True).start()
+    return {"stdout": f"{label} starting (pid {process.pid}) — check its log for progress."}
+
+
+def stop_pid_file(pid_file, label):
+    pid = read_pid_file(pid_file)
+    if not pid_is_alive(pid):
+        return {"stdout": f"{label} is not running."}
+    try:
+        # start_new_session=True made this pid its own process group leader,
+        # so this also reaches any children it spawned (e.g. a launched node).
+        os.killpg(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    return {"stdout": f"{label} stop signal sent."}
+
+
+def parse_tail(query, default, cap):
+    raw_tail = query.get("tail", [str(default)])[0]
+    try:
+        return max(1, min(cap, int(raw_tail)))
+    except ValueError:
+        return default
+
+
+def tail_log(path, tail):
+    if not path.is_file():
+        return "No logs yet."
+    return combine_output(run_command(["tail", f"-n{tail}", str(path)])) or "No logs yet."
+
+
+def get_mid360_status():
+    return {
+        "sdk_running": is_pid_file_running(MID360_SDK_PID_FILE),
+        "recorder_running": is_pid_file_running(MID360_RECORDER_PID_FILE),
+        "bag_dir": str(MID360_BAG_DIR),
+    }
+
+
+def start_livox_sdk():
+    if not LIVOX_START_SCRIPT.is_file():
+        return {"error": f"start script not found: {LIVOX_START_SCRIPT}"}
+    return start_background_process(
+        ["bash", str(LIVOX_START_SCRIPT)], MID360_SDK_LOG, MID360_SDK_PID_FILE, "Livox SDK"
+    )
+
+
+def start_mid360_recorder(postfix=""):
+    postfix = postfix or ""
+    if "/" in postfix or "\n" in postfix or "\r" in postfix:
+        return {"error": "bag name postfix must be a single path segment (no '/' or newlines)."}
+    MID360_BAG_DIR.mkdir(parents=True, exist_ok=True)
+    bag_name = "mid360_record_" + time.strftime("%Y%m%d_%H%M%S") + postfix
+    bag_path = MID360_BAG_DIR / bag_name
+    livox_setup = MID360_WS / "install" / "setup.bash"
+    overlay = f"source {shlex.quote(str(livox_setup))} && " if livox_setup.is_file() else ""
+    command = (
+        f"source /opt/ros/{MID360_ROS_DISTRO}/setup.bash && "
+        f"{overlay}"
+        f"exec ros2 bag record -o {shlex.quote(str(bag_path))} "
+        f"--max-cache-size 2147483648 {' '.join(MID360_BAG_TOPICS)}"
+    )
+    return start_background_process(
+        ["bash", "-lc", command], MID360_RECORDER_LOG, MID360_RECORDER_PID_FILE, "Bag recorder"
+    )
+
+
 class UniLidarHandler(BaseHTTPRequestHandler):
     server_version = "UniLidarRemote/1.0"
 
@@ -728,10 +1125,31 @@ class UniLidarHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _read_json_body(self):
+        try:
+            raw_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            raw_length = 0
+        raw_body = self.rfile.read(max(0, raw_length)) if raw_length else b""
+        return json.loads(raw_body.decode("utf-8") or "{}")
+
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/":
             self._write_html(INDEX_HTML)
+            return
+        if parsed.path == "/mid360":
+            self._write_html(MID360_HTML)
+            return
+        if parsed.path == "/api/mid360/status":
+            self._write_json(get_mid360_status())
+            return
+        if parsed.path == "/api/mid360/logs":
+            query = parse_qs(parsed.query)
+            tail = parse_tail(query, default=200, cap=2000)
+            target = query.get("target", ["sdk"])[0]
+            log_path = MID360_RECORDER_LOG if target == "recorder" else MID360_SDK_LOG
+            self._write_json({"logs": tail_log(log_path, tail), "target": target})
             return
         if parsed.path == "/api/status":
             self._write_json(get_status())
@@ -744,12 +1162,8 @@ class UniLidarHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/logs":
             query = parse_qs(parsed.query)
-            raw_tail = query.get("tail", ["300"])[0]
+            tail = parse_tail(query, default=300, cap=1000)
             container_name = query.get("container", [DEFAULT_CONTAINER_NAME])[0] or DEFAULT_CONTAINER_NAME
-            try:
-                tail = max(1, min(1000, int(raw_tail)))
-            except ValueError:
-                tail = 300
             result = get_logs(tail, container_name)
             status = get_status()
             if result["returncode"] != 0:
@@ -784,6 +1198,31 @@ class UniLidarHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/mid360/start_sdk":
+            try:
+                result = start_livox_sdk()
+            except Exception as error:
+                result = {"error": str(error)}
+            self._write_json(result, HTTPStatus.BAD_GATEWAY if "error" in result else HTTPStatus.OK)
+            return
+        if parsed.path == "/api/mid360/stop_sdk":
+            self._write_json(stop_pid_file(MID360_SDK_PID_FILE, "Livox SDK"))
+            return
+        if parsed.path == "/api/mid360/start_recorder":
+            try:
+                payload = self._read_json_body()
+            except json.JSONDecodeError as error:
+                self._write_json({"error": f"Invalid JSON payload: {error}"}, HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                result = start_mid360_recorder(payload.get("bag_name_postfix", ""))
+            except Exception as error:
+                result = {"error": str(error)}
+            self._write_json(result, HTTPStatus.BAD_GATEWAY if "error" in result else HTTPStatus.OK)
+            return
+        if parsed.path == "/api/mid360/stop_recorder":
+            self._write_json(stop_pid_file(MID360_RECORDER_PID_FILE, "Bag recorder"))
+            return
         if parsed.path == "/api/start":
             result = run_command([str(START_SCRIPT), DEFAULT_COMPOSE_NAME])
             if result["returncode"] == 0:
@@ -855,12 +1294,7 @@ class UniLidarHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/params":
             try:
-                raw_length = int(self.headers.get("Content-Length", "0"))
-            except ValueError:
-                raw_length = 0
-            raw_body = self.rfile.read(max(0, raw_length)) if raw_length else b""
-            try:
-                payload = json.loads(raw_body.decode("utf-8") or "{}")
+                payload = self._read_json_body()
             except json.JSONDecodeError as error:
                 self._write_json({"error": f"Invalid JSON payload: {error}"}, HTTPStatus.BAD_REQUEST)
                 return
@@ -872,12 +1306,7 @@ class UniLidarHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/bag_suffix":
             try:
-                raw_length = int(self.headers.get("Content-Length", "0"))
-            except ValueError:
-                raw_length = 0
-            raw_body = self.rfile.read(max(0, raw_length)) if raw_length else b""
-            try:
-                payload = json.loads(raw_body.decode("utf-8") or "{}")
+                payload = self._read_json_body()
             except json.JSONDecodeError as error:
                 self._write_json({"error": f"Invalid JSON payload: {error}"}, HTTPStatus.BAD_REQUEST)
                 return
