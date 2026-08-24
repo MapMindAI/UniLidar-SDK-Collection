@@ -1,12 +1,9 @@
 # Livox Mid-360
 
 Vendor SDK and ROS 2 driver for a Livox Mid-360 lidar, in addition to the
-Unitree L2 stack. `Livox-SDK2/` is still a vendor git submodule — treat its
-source as read-only. `livox_ros_driver2/` is vendored **in-tree** (forked from
-upstream `4a1def9`) and is ours to edit: the ROS 1 half, the `build.sh` that
-regenerated `package.xml`/`launch/` at build time, and the launch/config files
-for other lidar models were dropped, leaving a plain ROS 2 colcon package with
-a real `package.xml` and `launch/`.
+Unitree L2 stack. `Livox-SDK2/` is a vendor git submodule — read-only.
+`livox_ros_driver2/` is an in-tree ROS 2-only fork we edit directly; its README
+header lists what was pruned.
 
 ## Network prerequisite
 
@@ -42,9 +39,13 @@ tools/livox/build_livox_sdk.sh
 
 This builds and `sudo make install`s Livox-SDK2 into `/usr/local`, then
 `colcon build --symlink-install`s `livox_ros_driver2` into a workspace at
-`~/ws_livox` (override with `LIVOX_WS`). Re-run after pulling SDK submodule
-updates or editing the driver's C++ sources; `config/` and `launch/` edits are
-symlinked into the install and take effect on the next start.
+`~/ws_livox` (override with `LIVOX_WS`). `config/` and `launch/` edits are
+symlinked into the install and take effect on the next start. After a driver
+source edit, skip the script's `sudo` SDK half and rebuild only the package:
+
+```bash
+cd ~/ws_livox && colcon build --symlink-install --packages-select livox_ros_driver2
+```
 
 ## Run
 
@@ -56,14 +57,16 @@ Sources the workspace, checks the NIC has an IP, and runs
 `ros2 launch livox_ros_driver2 msg_MID360_launch.py`, which publishes the
 Mid-360's point cloud on `/livox/lidar` as `sensor_msgs/PointCloud2` and its
 IMU on `/livox/imu` as `sensor_msgs/Imu`. Set `LIVOX_LAUNCH_FILE` to
-`rviz_MID360_launch.py` to bring up rviz2 alongside the driver.
+`rviz_MID360_launch.py` to bring up rviz2 alongside the driver — it includes
+`msg_MID360_launch.py`, so the driver config lives in one file.
 
 The cloud carries the driver's packed 26-byte point: `x`, `y`, `z`,
 `intensity` (float32), `tag`, `line` (uint8), and a float64 `timestamp` that
-is the point's nanosecond offset within the message, not an absolute time.
-Both launch files set `xfer_format = 0` in
-`livox_ros_driver2/launch/`; set it to `1` for the legacy
-`livox_ros_driver2/msg/CustomMsg` format, which is still built and available.
+is the point's nanosecond offset within the message, not an absolute time. At
+the Mid-360's 200k points/s that is ~19 GB/h of rosbag for the lidar stream,
+against ~14 GB/h for the 20-byte `CustomMsg` point — budget accordingly when
+recording. `msg_MID360_launch.py` sets `xfer_format = 0`; set it to `1` for the
+legacy `livox_ros_driver2/msg/CustomMsg` format.
 
 ## Config
 

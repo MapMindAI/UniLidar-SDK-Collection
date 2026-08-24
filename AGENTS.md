@@ -15,8 +15,7 @@ deployment for an RK3566-based mapping data collector.
 │   ├── unitree_lidar_rosnode.cc       # ROS 2 bridge: publishes /unilidar/imu, /unilidar/cloud
 │   └── README_calibrate.md            # calibration workflow, current known issues
 ├── Livox-SDK2/                        # Vendor Livox SDK git submodule (CMake, C++11)
-├── livox_ros_driver2/                 # In-tree fork of the Livox ROS 2 driver (colcon, C++14)
-│   │                                   # ROS 2 only; publishes /livox/lidar as PointCloud2
+├── livox_ros_driver2/                 # In-tree ROS 2 fork of the Livox driver (colcon, C++14)
 │   ├── launch/                        # msg_MID360_launch.py, rviz_MID360_launch.py
 │   └── config/                        # per-deployment host/lidar IP config (MID360_config.json)
 ├── tools/                             # standalone Python/shell scripts, no package structure

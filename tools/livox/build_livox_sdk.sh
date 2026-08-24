@@ -25,11 +25,6 @@ if [[ ! -d "${SDK_DIR}/sdk_core" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${DRIVER_DIR}/package.xml" ]]; then
-  echo "livox_ros_driver2 is missing at ${DRIVER_DIR}" >&2
-  exit 1
-fi
-
 echo "== Building & installing Livox-SDK2 =="
 cmake -S "${SDK_DIR}" -B "${SDK_DIR}/build"
 cmake --build "${SDK_DIR}/build" -j"$(nproc)"
@@ -42,17 +37,17 @@ if ! command -v colcon >/dev/null 2>&1; then
   sudo apt-get install -y python3-colcon-common-extensions python3-rosdep
 fi
 
-if command -v rosdep >/dev/null 2>&1; then
-  echo "== Resolving livox_ros_driver2 dependencies via rosdep =="
-  sudo rosdep init >/dev/null 2>&1 || true
-  rosdep update
-fi
+FIRST_BUILD=0
+[[ -d "${WS_DIR}/install" ]] || FIRST_BUILD=1
 
 echo "== Setting up colcon workspace at ${WS_DIR} =="
 mkdir -p "${WS_DIR}/src"
 ln -sfn "${DRIVER_DIR}" "${WS_DIR}/src/livox_ros_driver2"
 
-if command -v rosdep >/dev/null 2>&1; then
+if [[ "${FIRST_BUILD}" == 1 ]] && command -v rosdep >/dev/null 2>&1; then
+  echo "== Resolving livox_ros_driver2 dependencies via rosdep =="
+  sudo rosdep init >/dev/null 2>&1 || true
+  rosdep update
   rosdep install --from-paths "${WS_DIR}/src" --ignore-src -r -y
 fi
 

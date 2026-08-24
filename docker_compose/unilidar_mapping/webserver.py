@@ -69,9 +69,7 @@ LIVOX_START_SCRIPT = Path(
     )
 )
 MID360_ROS_DISTRO = os.environ.get("UNILIDAR_MID360_ROS_DISTRO", "jazzy")
-# Must match the LIVOX_WS default in tools/livox/start_livox_mid360.sh. The
-# driver publishes standard sensor_msgs types, so the recorder only needs this
-# overlay if the launch file is switched back to livox_ros_driver2/CustomMsg.
+# Must match the LIVOX_WS default in tools/livox/start_livox_mid360.sh.
 MID360_WS = Path(os.environ.get("UNILIDAR_MID360_WS", Path.home() / "ws_livox"))
 MID360_BAG_DIR = Path(
     os.environ.get("UNILIDAR_MID360_BAG_DIR", REPO_ROOT / "data" / "rosbags_mid360")

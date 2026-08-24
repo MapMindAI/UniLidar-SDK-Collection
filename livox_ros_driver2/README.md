@@ -1,7 +1,9 @@
 > **This is upstream Livox's README, kept for its parameter and config-field
 > reference.** This directory is an in-tree fork (from upstream `4a1def9`):
 > there is no `build.sh`, no ROS 1 support, and `launch/`/`config/` hold only
-> the Mid-360 files. Build and run it as described in `doc/README_LIVOX.md`.
+> the Mid-360 files. The C++ sources keep upstream's `BUILDING_ROS1` branches
+> and `ros1_headers.h` unchanged — dead code, kept so source diffs against
+> upstream stay readable. Build and run as described in `doc/README_LIVOX.md`.
 
 # Livox ROS Driver 2
 
