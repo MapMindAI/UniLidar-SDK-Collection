@@ -11,7 +11,8 @@ remote web control panel.
 ## What is in this repo
 
 - `unitree_lidar_sdk/`: vendor SDK, examples, ROS 2 bridge, and offline packet tools
-- `Livox-SDK2/`, `livox_ros_driver2/`: vendor Livox Mid-360 SDK and ROS 2 driver
+- `Livox-SDK2/`: vendor Livox Mid-360 SDK (submodule)
+- `livox_ros_driver2/`: in-tree Livox ROS 2 driver, publishing `/livox/lidar` as `sensor_msgs/PointCloud2`
 - `tools/livox/`: Livox SDK/driver build and start scripts
 - `tools/rtk/`: RTK GNSS publisher and helpers
 - `tools/camera/`: USB camera publisher, viewer, and calibration tools

@@ -19,9 +19,14 @@ SDK_DIR="${REPO_ROOT}/Livox-SDK2"
 DRIVER_DIR="${REPO_ROOT}/livox_ros_driver2"
 WS_DIR="${LIVOX_WS:-${HOME}/ws_livox}"
 
-if [[ ! -d "${SDK_DIR}/sdk_core" || ! -f "${DRIVER_DIR}/package_ROS2.xml" ]]; then
-  echo "Livox-SDK2 / livox_ros_driver2 submodules are missing or empty; run:" >&2
+if [[ ! -d "${SDK_DIR}/sdk_core" ]]; then
+  echo "the Livox-SDK2 submodule is missing or empty; run:" >&2
   echo "  git -C ${REPO_ROOT} submodule update --init --recursive" >&2
+  exit 1
+fi
+
+if [[ ! -f "${DRIVER_DIR}/package.xml" ]]; then
+  echo "livox_ros_driver2 is missing at ${DRIVER_DIR}" >&2
   exit 1
 fi
 
@@ -51,14 +56,8 @@ if command -v rosdep >/dev/null 2>&1; then
   rosdep install --from-paths "${WS_DIR}/src" --ignore-src -r -y
 fi
 
-case "${ROS_DISTRO}" in
-  jazzy)  BUILD_ARG="jazzy" ;;
-  humble) BUILD_ARG="humble" ;;
-  *)      BUILD_ARG="ROS2" ;;
-esac
-
 echo "== Building livox_ros_driver2 (${ROS_DISTRO}) =="
-"${WS_DIR}/src/livox_ros_driver2/build.sh" "${BUILD_ARG}"
+(cd "${WS_DIR}" && colcon build --symlink-install --packages-select livox_ros_driver2)
 
 echo "Build complete."
 echo "Before running, source: ${WS_DIR}/install/setup.bash"

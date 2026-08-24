@@ -8,7 +8,7 @@ set -euo pipefail
 #   ROS_DISTRO        ROS 2 distro to source if not already sourced (default: jazzy)
 #   LIVOX_WS          colcon workspace built by build_livox_sdk.sh (default: ~/ws_livox)
 #   LIVOX_NET_IFACE   host NIC connected to the Mid-360 (default: eth0)
-#   LIVOX_LAUNCH_FILE launch_ROS2 file to run (default: msg_MID360_launch.py)
+#   LIVOX_LAUNCH_FILE launch/ file to run (default: msg_MID360_launch.py)
 
 ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 LIVOX_WS="${LIVOX_WS:-${HOME}/ws_livox}"
