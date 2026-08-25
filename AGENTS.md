@@ -32,7 +32,7 @@ deployment for an RK3566-based mapping data collector.
 │   └── boot_app/                       # systemd unit + installer for boot-time web service
 ├── web/                                # rtk_viewer.html static viewer served by webserver.py
 ├── third_party/                        # Bazel BUILD wrappers for system-installed deps
-│                                        # (ros_humble, pangolin, gflags, glog, eigen)
+│                                        # (ros_jazzy, pangolin, gflags, glog, eigen)
 ├── doc/                                 # per-topic docs: README_RTK.md, README_CAMERA.md
 ├── assets/                              # README images/gifs
 ├── setup.sh                             # root one-shot installer (sudo rules, CPU governor, boot service)

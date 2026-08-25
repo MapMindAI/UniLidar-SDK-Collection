@@ -15,7 +15,7 @@ except ImportError as exc:
     raise SystemExit(
         f"ROS 2 not available: {exc}\n"
         "Source your ROS 2 workspace first:\n"
-        "  source /opt/ros/humble/setup.bash"
+        "  source /opt/ros/jazzy/setup.bash"
     ) from exc
 
 

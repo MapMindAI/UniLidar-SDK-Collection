@@ -150,7 +150,7 @@ Install runtime dependencies:
 
 ```bash
 sudo apt install python3-serial
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 ```
 
 Run:
@@ -254,7 +254,7 @@ An interactive map viewer is included at [`web/rtk_viewer.html`](web/rtk_viewer.
 **Export a ROS 2 bag to viewer format:**
 
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 python3 tools/rtk/bag_to_rtk_txt.py /path/to/bag/        # writes <bag>_rtk.txt
 python3 tools/rtk/bag_to_rtk_txt.py bag.db3 -o out.txt   # explicit output
 ```

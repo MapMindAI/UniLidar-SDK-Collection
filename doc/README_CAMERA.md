@@ -47,7 +47,7 @@ opens a V4L2 camera with OpenCV and publishes JPEG-compressed frames.
 | `CAMERA_JPEG_QUALITY` | `80` | JPEG encode quality (0–100) |
 
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 CAMERA_DEVICE=/dev/video4 CAMERA_WIDTH=1280 CAMERA_HEIGHT=960 \
 CAMERA_AUTO_EXPOSURE_TARGET_BRIGHTNESS=90 \
   python3 tools/camera/camera_ros_publisher.py
@@ -82,7 +82,7 @@ below.
 | `CAMERA_SAVE_DIR` | `data/camera_calib` | Where saved frames go |
 
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 python3 tools/camera/camera_ros_viewer.py
 ```
 
@@ -223,7 +223,7 @@ good, before trusting it downstream.
 | `CAMERA_UNDISTORT_FOV_DEG` | `120` | Horizontal FOV of the virtual pinhole output |
 
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 CAMERA_CALIBRATION_YAML=data/camera_calib/calibration.yaml \
   python3 tools/camera/calibration/undistort_viewer.py
 ```

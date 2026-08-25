@@ -63,7 +63,7 @@ cc_binary(
         ":unilidar_sdk2",
         "@system_gflags//:gflags",
         "@system_glog//:glog",
-        "@ros_humble//:ros_humble",
+        "@ros_jazzy//:ros_jazzy",
     ],
 )
 

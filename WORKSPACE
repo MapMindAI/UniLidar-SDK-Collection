@@ -1,9 +1,9 @@
 workspace(name = "unilidar_sdk2")
 
 new_local_repository(
-    name = "ros_humble",
-    build_file = "//third_party:ros_humble.BUILD",
-    path = "/opt/ros/humble",
+    name = "ros_jazzy",
+    build_file = "//third_party:ros_jazzy.BUILD",
+    path = "/opt/ros/jazzy",
 )
 
 new_local_repository(
